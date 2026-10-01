@@ -316,6 +316,17 @@ TTS_PROVIDER=mock
 AI_SERVER_URL=http://127.0.0.1:8100
 ```
 
+`.gitignore`（本计划可独立于计划 A 执行，必须自带忽略规则；vitest 未设 `DATA_DIR` 时会向仓库根写 `data/`，`next build` 产生 `.next/`）：
+
+```gitignore
+node_modules/
+.next/
+data/
+.env
+*.tsbuildinfo
+next-env.d.ts
+```
+
 - [ ] **Step 5: 安装并验证**
 
 ```powershell
@@ -328,7 +339,7 @@ Expected: build 成功退出。
 - [ ] **Step 6: Commit**
 
 ```powershell
-git add package.json package-lock.json tsconfig.json next.config.mjs vitest.config.ts app .env.example
+git add .gitignore package.json package-lock.json tsconfig.json next.config.mjs vitest.config.ts app .env.example
 git commit -m "chore: nextjs scaffold with vitest and zod"
 ```
 
@@ -533,6 +544,11 @@ it("解析多个标记", () => {
   expect(r.clean).toBe("A and done")
 })
 
+it("相邻标记与塌缩多余空格", () => {
+  const r = parseGoalMarker("[GOAL_DONE:0] [GOAL_DONE:1] text")
+  expect(r).toEqual({ clean: "text", goals: [0, 1] })
+})
+
 it("无标记时原样返回", () => {
   expect(parseGoalMarker("Nothing here.")).toEqual({ clean: "Nothing here.", goals: [] })
 })
@@ -555,10 +571,11 @@ Expected: FAIL（模块不存在）
 export function parseGoalMarker(text: string): { clean: string; goals: number[] } {
   const goals: number[] = []
   const clean = text
-    .replace(/\[GOAL_DONE:(\d+)\]/g, (_, n: string) => {
+    .replace(/ ?\[GOAL_DONE:(\d+)\]/g, (_, n: string) => {
       goals.push(Number(n))
       return ""
     })
+    .replace(/ {2,}/g, " ")
     .trim()
   return { clean, goals }
 }
@@ -567,7 +584,7 @@ export function parseGoalMarker(text: string): { clean: string; goals: number[] 
 - [ ] **Step 5: 运行确认通过**
 
 Run: `npx vitest run tests/goal-marker.test.ts`
-Expected: 4 passed
+Expected: 5 passed
 
 - [ ] **Step 6: Commit**
 
@@ -705,12 +722,22 @@ export function selectForInjection(words: VocabWord[], limit = 5): VocabWord[] {
     .slice(0, limit)
 }
 
-function stem(word: string): string {
-  const w = word.toLowerCase().replace(/[^a-z]/g, "")
+function stripInflection(w: string): string {
   for (const suf of ["ing", "ed", "es", "s"]) {
     if (w.endsWith(suf) && w.length - suf.length >= 3) return w.slice(0, -suf.length)
   }
   return w
+}
+
+function stem(word: string): string {
+  const w = stripInflection(word.toLowerCase().replace(/[^a-z]/g, ""))
+  return w.endsWith("e") ? w.slice(0, -1) : w
+}
+
+function stemFamily(a: string, b: string): boolean {
+  if (a === b) return true
+  const [s, l] = a.length <= b.length ? [a, b] : [b, a]
+  return s.length >= 5 && l.startsWith(s) && l.length - s.length <= 4
 }
 
 function stemTokens(text: string): string[] {
@@ -723,7 +750,7 @@ export function containsWord(text: string, word: string): boolean {
     return text.toLowerCase().includes(target.replace(/[^a-z ]/g, "").replace(/\s+/g, " ").trim())
   }
   const t = stem(target)
-  return stemTokens(text).some(tok => tok === t)
+  return stemTokens(text).some(tok => stemFamily(tok, t))
 }
 
 export async function markUsedInSession(active: VocabWord[], transcript: string): Promise<void> {
@@ -741,6 +768,8 @@ export async function markUsedInSession(active: VocabWord[], transcript: string)
   )
 }
 ```
+
+（词干归一说明：`stem` 处理屈折变化（时态/单复数）并做 e-脱落归一，使 `negotiate/negotiated/negotiates/negotiating` 归一到 `negotiat`；`stemFamily` 的前缀回退覆盖派生词族（如 `negotiation`，与 `negotiat` 前缀差 ≤4）。已知代价：宽松词族可能把 `practice/practicable` 算同族——用于"使用计数"场景可接受，误报仅多计一次，不影响注入正确性。）
 
 - [ ] **Step 4: 运行确认通过**
 
@@ -1538,14 +1567,16 @@ it("回填校验：幻觉（无匹配）与空 original 被丢弃", () => {
 
 it("generateReport 全链路：报告落库、生词计数、会话结束", async () => {
   const s = await createSession("builtin-interview")
-  await appendTurn(s.id, turn("t1", "I go yesterday"))
+  await appendTurn(s.id, turn("t1", "I go yesterday because we hit a blocker"))
   await addWord({ word: "blocker", translation: "阻碍", example: "We hit a blocker.", sourceSessionId: "other" })
   const report = await generateReport(s.id)
   expect(report.corrections[0].turnId).toBe("t1")
   const stored = (await getSession(s.id))!
   expect(stored.report?.summary).toBeTruthy()
   expect(stored.endedAt).toBeTruthy()
-  expect((await listWords())[0].timesEncountered).toBe(1)
+  const [w] = await listWords()
+  expect(w.timesEncountered).toBe(1)
+  expect(w.lastUsedAt).toBeTruthy()
 })
 
 it("generateReport 会话不存在抛错", async () => {
