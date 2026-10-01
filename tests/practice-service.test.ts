@@ -18,8 +18,9 @@ it("createSession + appendTurn + goalProgress 并集", async () => {
   const s = await createSession("sc1")
   await appendTurn(s.id, turn("t1", 1), [0])
   await appendTurn(s.id, turn("t2", 2), [0, 1])
+  await appendTurn(s.id, turn("t3", 3), [])
   const after = (await getSession(s.id))!
-  expect(after.turns.map(t => t.id)).toEqual(["t1", "t2"])
+  expect(after.turns.map(t => t.id)).toEqual(["t1", "t2", "t3"])
   expect(after.goalProgress).toEqual([0, 1])
 })
 
