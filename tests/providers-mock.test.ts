@@ -2,12 +2,12 @@ import { expect, it } from "vitest"
 import { getChat, getSTT, getTTS } from "@/lib/providers/types"
 
 it("mock STT 返回固定文本", async () => {
-  const r = await getSTT().transcribe(new Blob(["x"]))
+  const r = await (await getSTT()).transcribe(new Blob(["x"]))
   expect(r.text).toContain("mock")
 })
 
 it("mock Chat 对话流带 GOAL_DONE 标记", async () => {
-  const c = getChat()
+  const c = await getChat()
   const sys = "You are an English speaking coach."
   const m1 = await c.chat(sys, [{ role: "user", content: "hi" }])
   expect(m1).not.toContain("[GOAL_DONE")
@@ -19,7 +19,7 @@ it("mock Chat 对话流带 GOAL_DONE 标记", async () => {
 })
 
 it("mock Chat 报告流返回合法 JSON 且引用 turnId", async () => {
-  const out = await getChat().chat("You are a spoken-English report analyzer.", [
+  const out = await (await getChat()).chat("You are a spoken-English report analyzer.", [
     { role: "user", content: "[abc-123] I go yesterday" },
   ])
   const parsed = JSON.parse(out)
@@ -29,7 +29,7 @@ it("mock Chat 报告流返回合法 JSON 且引用 turnId", async () => {
 })
 
 it("mock TTS 返回 WAV 头", async () => {
-  const buf = await getTTS().synthesize("hello")
+  const buf = await (await getTTS()).synthesize("hello")
   const v = new DataView(buf)
   expect(String.fromCharCode(v.getUint8(0), v.getUint8(1), v.getUint8(2), v.getUint8(3))).toBe("RIFF")
   expect(buf.byteLength).toBeGreaterThan(44)

@@ -11,7 +11,8 @@ export async function POST(req: NextRequest) {
   if (!scenario) return NextResponse.json({ error: "scenario not found" }, { status: 404 })
   const vocab = selectForInjection(await listWords())
   const system = buildSystemPrompt(scenario, vocab) + modeInstruction(mode)
-  const raw = await getChat().chat(system, messages ?? [])
+  const chat = await getChat()
+  const raw = await chat.chat(system, messages ?? [])
   const { clean, goals } = parseGoalMarker(raw)
   return NextResponse.json({ reply: clean, goalsDone: goals })
 }

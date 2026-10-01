@@ -66,7 +66,7 @@ export async function draftScenario(description: string): Promise<Scenario> {
   const system =
     "You are a scenario designer for workplace English practice. Output ONLY a JSON object: " +
     '{"title":string(中文),"persona":string(English role-play setting),"goals":string[](3 English goals),"difficulty":"easy"|"medium"|"hard"}'
-  const raw = await getChat().chat(system, [{ role: "user", content: description }])
+  const raw = await (await getChat()).chat(system, [{ role: "user", content: description }])
   let draft: Scenario
   try {
     const j = JSON.parse(raw.replace(/^```(?:json)?\s*|\s*```$/g, ""))

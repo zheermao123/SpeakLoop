@@ -46,7 +46,7 @@ export async function generateReport(sessionId: string): Promise<Report> {
   const session = await getSession(sessionId)
   if (!session) throw new Error("session not found")
   const transcript = session.turns.map(t => `[${t.id}] ${t.userText}`).join("\n")
-  const rawText = await getChat().chat(REPORT_SYSTEM, [
+  const rawText = await (await getChat()).chat(REPORT_SYSTEM, [
     { role: "user", content: `Transcript:\n${transcript}` },
   ])
   const parsed = tolerantParse(rawText)

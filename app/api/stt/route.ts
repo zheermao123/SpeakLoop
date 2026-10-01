@@ -16,7 +16,8 @@ export async function POST(req: NextRequest) {
   } catch {
     audioUrl = undefined
   }
-  const result = await getSTT().transcribe(new Blob([buf]))
+  const stt = await getSTT()
+  const result = await stt.transcribe(new Blob([buf]))
   return NextResponse.json({
     turnId,
     text: result.text,
