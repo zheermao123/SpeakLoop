@@ -17,6 +17,11 @@ export interface ChatProvider {
     system: string,
     messages: { role: "user" | "assistant"; content: string }[]
   ): Promise<string>
+  chatStream(
+    system: string,
+    messages: { role: "user" | "assistant"; content: string }[],
+    onDelta: (delta: string) => void
+  ): Promise<string>
 }
 
 export interface TTSProvider {

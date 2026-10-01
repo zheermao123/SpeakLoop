@@ -24,4 +24,14 @@ export class MockChatProvider implements ChatProvider {
     if (userCount >= 4) return "Great, I think we've covered a lot today. Thanks! [GOAL_DONE:1]"
     return "Interesting. Please go on."
   }
+
+  async chatStream(
+    system: string,
+    messages: { role: "user" | "assistant"; content: string }[],
+    onDelta: (delta: string) => void
+  ): Promise<string> {
+    const full = await this.chat(system, messages)
+    for (let i = 0; i < full.length; i += 16) onDelta(full.slice(i, i + 16))
+    return full
+  }
 }
