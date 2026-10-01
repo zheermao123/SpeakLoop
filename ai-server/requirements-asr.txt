@@ -1,0 +1,5 @@
+qwen-asr
+fastapi
+uvicorn[standard]
+python-multipart
+av
