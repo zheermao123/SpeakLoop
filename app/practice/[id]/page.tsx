@@ -4,6 +4,7 @@ import { CheckCircle, Circle } from "@phosphor-icons/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import Recorder from "@/components/Recorder"
+import { AudioQueue } from "@/lib/audio-queue"
 import { Scenario, Session, Turn } from "@/lib/domain/types"
 
 type Bubble = { role: "user" | "ai" | "coach"; text: string }
@@ -21,7 +22,43 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [ttsDown, setTtsDown] = useState(false)
   const [failed, setFailed] = useState<Step | null>(null)
   const [keyboard, setKeyboard] = useState("")
-  const pending = useRef<{ turnId?: string; audioUrl?: string; userText: string } | null>(null)
+  const pending = useRef<{ turnId?: string; audioUrl?: string; userText: string; sttProvider?: string } | null>(null)
+  const audioQueue = useRef<AudioQueue | null>(null)
+  function queue(): AudioQueue {
+    if (!audioQueue.current) {
+      audioQueue.current = new AudioQueue(async buf => {
+        await new Promise<void>(resolve => {
+          const a = new Audio(URL.createObjectURL(new Blob([buf], { type: "audio/wav" })))
+          a.onended = () => {
+            URL.revokeObjectURL(a.src)
+            setTtsDown(false)
+            resolve()
+          }
+          a.onerror = () => resolve()
+          a.play().catch(() => {
+            setTtsDown(true)
+            resolve()
+          })
+        })
+      })
+    }
+    return audioQueue.current
+  }
+
+  async function postTts(text: string): Promise<ArrayBuffer | null> {
+    try {
+      const r = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, speaker: scenario?.voice }),
+      })
+      if (!r.ok) throw new Error()
+      return await r.arrayBuffer()
+    } catch {
+      setTtsDown(true)
+      return null
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -43,41 +80,101 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     const r = await fetch("/api/stt", { method: "POST", body: form })
     if (!r.ok) { setBusy(false); setFailed({ name: "stt", retry: () => runStt(blob) }); return }
     const data = await r.json()
-    pending.current = { turnId: data.turnId, audioUrl: data.audioUrl, userText: data.text }
-    await runChat(data.text)
+    pending.current = { turnId: data.turnId, audioUrl: data.audioUrl, userText: data.text, sttProvider: data.sttProvider }
+    await runChatStream(data.text)
   }
 
-  async function runChat(userText: string, mode?: "simplify" | "hint") {
+  async function runChatStream(userText: string) {
     setBusy(true); setFailed(null)
     const messages = bubbles
       .filter(b => b.role !== "coach")
       .map(b => ({ role: b.role === "user" ? "user" as const : "assistant" as const, content: b.text }))
-    if (!mode) messages.push({ role: "user", content: userText })
-    const r = await fetch("/api/chat", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: session!.id, scenarioId: session!.scenarioId, messages, mode }),
-    })
-    if (!r.ok) { setBusy(false); setFailed({ name: "chat", retry: () => runChat(userText, mode) }); return }
-    const { reply, goalsDone } = await r.json()
-    if (mode) {
-      setBubbles(b => [...b, { role: "coach", text: reply }])
+    messages.push({ role: "user", content: userText })
+    setBubbles(b => [...b, { role: "user", text: userText }, { role: "ai", text: "" }])
+    let res: Response
+    try {
+      res = await fetch("/api/chat/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: session!.id, scenarioId: session!.scenarioId, messages }),
+      })
+      if (!res.ok || !res.body) throw new Error(`stream ${res.status}`)
+    } catch {
+      setBubbles(b => b.slice(0, -2))
       setBusy(false)
+      setFailed({ name: "chat", retry: () => runChatStream(userText) })
       return
     }
-    setBubbles(b => [...b, { role: "user", text: userText }, { role: "ai", text: reply }])
+    const reader = res.body.getReader()
+    const dec = new TextDecoder()
+    let buf = ""
+    let reply = ""
+    const goalsDone: number[] = []
+    let errored = false
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += dec.decode(value, { stream: true })
+      const frames = buf.split("\n\n")
+      buf = frames.pop() ?? ""
+      for (const f of frames) {
+        const line = f.trim()
+        if (!line.startsWith("data:")) continue
+        let ev: { type: string; text?: string; reply?: string; goalsDone?: number[] }
+        try {
+          ev = JSON.parse(line.slice(5))
+        } catch {
+          continue
+        }
+        if (ev.type === "delta" && ev.text) {
+          const t = ev.text
+          setBubbles(b => b.map((x, i) => (i === b.length - 1 && x.role === "ai" ? { ...x, text: x.text + t } : x)))
+        } else if (ev.type === "sentence" && ev.text) {
+          const sentence = ev.text
+          queue().enqueue(() => postTts(sentence))
+        } else if (ev.type === "done") {
+          reply = ev.reply ?? ""
+          goalsDone.push(...(ev.goalsDone ?? []))
+        } else if (ev.type === "error") {
+          errored = true
+        }
+      }
+    }
+    if (errored || !reply) {
+      setBubbles(b => b.slice(0, -2))
+      setBusy(false)
+      setFailed({ name: "chat", retry: () => runChatStream(userText) })
+      return
+    }
+    setBubbles(b => b.map((x, i) => (i === b.length - 1 && x.role === "ai" ? { ...x, text: reply } : x)))
     setGoalProgress(g => Array.from(new Set([...g, ...goalsDone])))
     const turn: Turn = {
       id: pending.current?.turnId ?? crypto.randomUUID(),
       userText, aiText: reply,
       audioUrl: pending.current?.audioUrl,
-      sttProvider: pending.current?.turnId ? "mock" : "keyboard",
+      sttProvider: pending.current?.sttProvider ?? "keyboard",
       createdAt: new Date().toISOString(),
     }
     const ok = await persistTurn(turn, goalsDone)
     if (!ok) return
     pending.current = null
     setBusy(false)
-    playTts(reply)
+  }
+
+  async function runChat(mode: "simplify" | "hint") {
+    setBusy(true); setFailed(null)
+    const messages = bubbles
+      .filter(b => b.role !== "coach")
+      .map(b => ({ role: b.role === "user" ? "user" as const : "assistant" as const, content: b.text }))
+    const r = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: session!.id, scenarioId: session!.scenarioId, messages, mode }),
+    })
+    if (!r.ok) { setBusy(false); setFailed({ name: "chat", retry: () => runChat(mode) }); return }
+    const { reply } = await r.json()
+    setBubbles(b => [...b, { role: "coach", text: reply }])
+    setBusy(false)
   }
 
   async function persistTurn(turn: Turn, goalsDone: number[]): Promise<boolean> {
@@ -93,27 +190,13 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
           if (await persistTurn(turn, goalsDone)) {
             pending.current = null
             setBusy(false)
-            playTts(turn.aiText)
+            queue().enqueue(() => postTts(turn.aiText))
           }
         },
       })
       return false
     }
     return true
-  }
-
-  async function playTts(text: string) {
-    try {
-      const wav = await fetch("/api/tts", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, speaker: scenario?.voice }),
-      }).then(r => { if (!r.ok) throw new Error(); return r.arrayBuffer() })
-      const audio = new Audio(URL.createObjectURL(new Blob([wav], { type: "audio/wav" })))
-      await audio.play()
-      setTtsDown(false)
-    } catch {
-      setTtsDown(true)
-    }
   }
 
   async function endPractice() {
@@ -179,15 +262,15 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
               if (e.key === "Enter" && keyboard.trim() && !busy) {
                 const t = keyboard.trim(); setKeyboard("")
                 pending.current = { userText: t }
-                await runChat(t)
+                await runChatStream(t)
               }
             }} />
         </div>
         <div className="row" style={{ marginTop: 8 }}>
           <button className="btn btn-secondary" disabled={busy || bubbles.length === 0}
-            onClick={() => runChat("", "simplify")}>听不懂</button>
+            onClick={() => runChat("simplify")}>听不懂</button>
           <button className="btn btn-secondary" disabled={busy || bubbles.length === 0}
-            onClick={() => runChat("", "hint")}>提示</button>
+            onClick={() => runChat("hint")}>提示</button>
           <button className="btn btn-danger" disabled={busy || bubbles.length === 0} onClick={endPractice}>
             结束练习
           </button>
