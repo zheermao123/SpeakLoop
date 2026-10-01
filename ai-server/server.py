@@ -49,3 +49,27 @@ def get_tts():
 @app.get("/health")
 def health():
     return {"status": "ok", "role": ROLE, "model_loaded": _loaded[ROLE] is not None}
+
+
+if ROLE == "tts":
+    import soundfile as sf
+    from fastapi.responses import Response
+
+    class TTSRequest(BaseModel):
+        text: str
+        speaker: str = "Aiden"
+        instruct: str | None = None
+
+    @app.post("/tts")
+    def tts(req: TTSRequest):
+        try:
+            model = get_tts()
+            kwargs = dict(text=req.text, language="English", speaker=req.speaker)
+            if req.instruct:
+                kwargs["instruct"] = req.instruct
+            wavs, sr = model.generate_custom_voice(**kwargs)
+            buf = io.BytesIO()
+            sf.write(buf, wavs[0], sr, format="WAV")
+            return Response(content=buf.getvalue(), media_type="audio/wav")
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(status_code=500, detail=str(e)) from e
