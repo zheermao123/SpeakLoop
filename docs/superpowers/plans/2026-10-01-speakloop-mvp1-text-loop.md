@@ -15,6 +15,7 @@
 - 存储目录 `data/`（gitignore）；测试用 `process.env.DATA_DIR` 指向临时目录，`json-store` 每次调用时读取该 env
 - Provider env：`STT_PROVIDER`/`CHAT_PROVIDER`/`TTS_PROVIDER`（本计划内只有 `mock`）；`AI_SERVER_URL` 默认 `http://127.0.0.1:8100`（本计划不使用）
 - 文案规则：AI 对话内容全英文；报告/解释/UI 全中文
+- UI 规则（依据 spec §8.1）：样式一律用 `app/globals.css` 中的设计 token（色彩/圆角/阴影/间距变量），禁止组件内新写硬编码颜色；图标一律 `@phosphor-icons/react` 矢量图标（装饰性 `aria-hidden`，控件内配可访问名），禁止 emoji 作图标/状态；交互控件满足 `min-height:44px`、可见焦点环、`aria-pressed`/`aria-live` 状态；动效遵守 `prefers-reduced-motion` 兜底
 - TTS mock 返回 150ms 静音 WAV；STT mock 返回固定文本；Chat mock 按 system 前缀分流（对话/报告/场景草稿/模式）
 - 每任务完成时 `npm test` 全绿；UI 任务以 `npm run build` 通过为验证
 
@@ -44,6 +45,7 @@
     "doctor": "node scripts/doctor.mjs"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.2.3",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -129,28 +131,172 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 ```
 
-`app/globals.css`：
+`app/globals.css`（设计 token 体系，依据 spec §8.1：LMS 教育色板 × Claymorphism 造型）：
 
 ```css
+@import url("https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+
+:root {
+  --color-primary: #0d9488;
+  --color-on-primary: #000000;
+  --color-secondary: #2dd4bf;
+  --color-on-secondary: #0f172a;
+  --color-accent: #d97706;
+  --color-on-accent: #000000;
+  --color-background: #f0fdfa;
+  --color-foreground: #134e4a;
+  --color-card: #ffffff;
+  --color-card-foreground: #134e4a;
+  --color-muted: #e8f1f4;
+  --color-muted-foreground: #475569;
+  --color-border: #5eead4;
+  --color-destructive: #dc2626;
+  --color-on-destructive: #ffffff;
+  --color-ring: #0d9488;
+
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --border-thick: 3px;
+  --shadow-inner: inset -2px -2px 8px rgba(19, 78, 74, 0.08);
+  --shadow-outer: 4px 4px 8px rgba(19, 78, 74, 0.12);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+
+  --font-heading: "Baloo 2", system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
 * { box-sizing: border-box; }
-body { margin: 0; font-family: system-ui, "Segoe UI", sans-serif; background: #f6f7f9; color: #1a1a1a; }
-.nav { display: flex; gap: 16px; padding: 12px 24px; background: #111827; }
-.nav a { color: #f9fafb; text-decoration: none; font-weight: 600; }
-.container { max-width: 880px; margin: 0 auto; padding: 24px; }
-.card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
-.btn { display: inline-block; border: 0; border-radius: 8px; padding: 8px 16px; background: #2563eb; color: #fff; cursor: pointer; font-size: 15px; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-secondary { background: #6b7280; }
-.btn-danger { background: #dc2626; }
-.input, textarea, select { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; }
-.bubble { max-width: 78%; padding: 10px 14px; border-radius: 12px; margin: 6px 0; white-space: pre-wrap; }
-.bubble-user { background: #2563eb; color: #fff; margin-left: auto; }
-.bubble-ai { background: #fff; border: 1px solid #e5e7eb; }
-.bubble-coach { background: #fef9c3; border: 1px solid #fde047; font-size: 14px; }
-.row { display: flex; gap: 8px; align-items: center; }
-.muted { color: #6b7280; font-size: 13px; }
-.chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #e5e7eb; }
-.stat { font-size: 28px; font-weight: 700; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+h1, h2, h3, h4 { font-family: var(--font-heading); }
+
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+.nav {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-foreground);
+  font-family: var(--font-heading);
+}
+.nav a {
+  color: #ccfbf1;
+  text-decoration: none;
+  font-weight: 600;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  transition: background 200ms ease-out;
+}
+.nav a:hover { background: rgba(255, 255, 255, 0.12); }
+.nav a.active { background: var(--color-primary); color: var(--color-on-primary); }
+
+.container { max-width: 880px; margin: 0 auto; padding: var(--space-4); }
+
+.card {
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+  border: var(--border-thick) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-inner), var(--shadow-outer);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-outer);
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out, background 200ms ease-out;
+}
+.btn:hover { background: #0f766e; }
+.btn:active { transform: scale(0.97); box-shadow: var(--shadow-inner); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-secondary { background: var(--color-secondary); color: var(--color-on-secondary); }
+.btn-secondary:hover { background: #99f6e4; }
+.btn-danger { background: var(--color-destructive); color: var(--color-on-destructive); }
+.btn-danger:hover { background: #b91c1c; }
+
+.input, textarea, select {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: 15px;
+  background: var(--color-card);
+  color: var(--color-foreground);
+}
+textarea { min-height: 80px; }
+
+label.field {
+  display: block;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  margin: var(--space-3) 0 var(--space-1);
+}
+label.field .req { color: var(--color-destructive); }
+
+.bubble {
+  max-width: 78%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  margin: var(--space-1) 0;
+  white-space: pre-wrap;
+}
+.bubble-user { background: var(--color-primary); color: var(--color-on-primary); margin-left: auto; }
+.bubble-ai { background: var(--color-card); border: 2px solid var(--color-border); }
+.bubble-coach { background: #fef3c7; border: 2px solid var(--color-accent); font-size: 14px; }
+
+.row { display: flex; gap: var(--space-2); align-items: center; }
+.mt-2 { margin-top: var(--space-2); }
+.mt-3 { margin-top: var(--space-3); }
+.muted { color: var(--color-muted-foreground); font-size: 13px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+}
+.stat { font-size: 28px; font-weight: 700; font-family: var(--font-heading); color: var(--color-primary); }
+.stat-accent { color: var(--color-accent); }
+.goal-done { color: var(--color-accent); font-weight: 600; }
+
+.recording { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.6; } }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
 ```
 
 `app/page.tsx`（占位，Task 12 替换）：
@@ -1783,14 +1929,54 @@ git commit -m "feat: thin api routes over services"
 ### Task 12: UI 外壳 + 仪表盘 + 场景页
 
 **Files:**
-- Modify: `app/page.tsx`（替换占位）
-- Create: `app/scenarios/page.tsx`
+- Modify: `app/page.tsx`（替换占位）、`app/layout.tsx`（导航换用 Nav 组件）
+- Create: `components/Nav.tsx`、`app/scenarios/page.tsx`
 
 **Interfaces:**
 - Consumes: `GET /api/sessions`、`GET /api/vocab`、`GET /api/scenarios`、`POST /api/scenarios/draft`、`POST /api/scenarios`、`POST /api/sessions`、`POST /api/tts/warmup`
-- Produces: 仪表盘（本周练习/生词分布/错误 Top3/最近练习）与场景选择页（卡片 + 自定义流程：描述→草稿→编辑→保存→开练）
+- Produces: 仪表盘（本周练习/生词分布/错误 Top3/最近练习）与场景选择页（卡片 + 自定义流程：描述→草稿→编辑→保存→开练）；`Nav` 客户端组件（当前页高亮，供 layout 使用）
 
-- [ ] **Step 1: app/page.tsx（仪表盘）**
+- [ ] **Step 1: components/Nav.tsx（导航当前页高亮）**
+
+```tsx
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+
+export default function Nav() {
+  const pathname = usePathname()
+  const links = [
+    { href: "/scenarios", label: "场景" },
+    { href: "/vocab", label: "生词本" },
+  ]
+  return (
+    <nav className="nav" aria-label="主导航">
+      <Link href="/">SpeakLoop</Link>
+      {links.map(l => (
+        <Link key={l.href} href={l.href} className={pathname.startsWith(l.href) ? "active" : ""}>
+          {l.label}
+        </Link>
+      ))}
+    </nav>
+  )
+}
+```
+
+同时把 `app/layout.tsx` 中的内联 `<nav>…</nav>` 替换为：
+
+```tsx
+import Nav from "@/components/Nav"
+```
+
+```tsx
+<body>
+  <Nav />
+  <main className="container">{children}</main>
+</body>
+```
+
+- [ ] **Step 2: app/page.tsx（仪表盘）**
 
 ```tsx
 "use client"
@@ -1827,7 +2013,7 @@ export default function Dashboard() {
       <div className="row" style={{ alignItems: "stretch" }}>
         <div className="card" style={{ flex: 1 }}>
           <div className="muted">本周练习</div>
-          <div className="stat">{weekCount} 次</div>
+          <div className="stat stat-accent">{weekCount} 次</div>
         </div>
         <div className="card" style={{ flex: 1 }}>
           <div className="muted">生词（new/learning/mastered）</div>
@@ -1857,7 +2043,7 @@ export default function Dashboard() {
 }
 ```
 
-- [ ] **Step 2: app/scenarios/page.tsx**
+- [ ] **Step 3: app/scenarios/page.tsx**
 
 ```tsx
 "use client"
@@ -1930,24 +2116,28 @@ export default function ScenariosPage() {
       ))}
       <h3>自定义场景</h3>
       <div className="card">
+        <label className="field">场景描述 <span className="req">*</span></label>
         <textarea className="input" rows={2} placeholder="用中文描述场景，如：和外国客户谈判交期"
           value={description} onChange={e => setDescription(e.target.value)} />
-        <button className="btn" style={{ marginTop: 8 }} disabled={busy || !description.trim()} onClick={genDraft}>
+        <button className="btn mt-2" disabled={busy || !description.trim()} onClick={genDraft}>
           生成草稿
         </button>
         {draft && (
-          <div style={{ marginTop: 12 }}>
-            <input className="input" value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} placeholder="标题" />
-            <textarea className="input" rows={2} style={{ marginTop: 8 }} value={draft.persona}
-              onChange={e => setDraft({ ...draft, persona: e.target.value })} placeholder="AI 角色设定（英文）" />
-            <textarea className="input" rows={3} style={{ marginTop: 8 }} value={String(draft.goals)}
-              onChange={e => setDraft({ ...draft, goals: e.target.value.split("\n") as unknown as string[] })}
-              placeholder="练习目标（每行一个，英文）" />
-            <select className="input" style={{ marginTop: 8 }} value={draft.difficulty}
+          <div className="mt-3">
+            <label className="field">标题 <span className="req">*</span></label>
+            <input className="input" value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} />
+            <label className="field">AI 角色设定（英文） <span className="req">*</span></label>
+            <textarea className="input" rows={2} value={draft.persona}
+              onChange={e => setDraft({ ...draft, persona: e.target.value })} />
+            <label className="field">练习目标（每行一个，英文） <span className="req">*</span></label>
+            <textarea className="input" rows={3} value={String(draft.goals)}
+              onChange={e => setDraft({ ...draft, goals: e.target.value.split("\n") as unknown as string[] })} />
+            <label className="field">难度</label>
+            <select className="input" value={draft.difficulty}
               onChange={e => setDraft({ ...draft, difficulty: e.target.value as Scenario["difficulty"] })}>
               <option value="easy">easy</option><option value="medium">medium</option><option value="hard">hard</option>
             </select>
-            <div className="row" style={{ marginTop: 8 }}>
+            <div className="row mt-2">
               <button className="btn" disabled={busy} onClick={saveDraft}>保存并开始</button>
               <button className="btn btn-secondary" onClick={() => setDraft(null)}>取消</button>
             </div>
@@ -1959,20 +2149,20 @@ export default function ScenariosPage() {
 }
 ```
 
-- [ ] **Step 3: 验证**
+- [ ] **Step 4: 验证**
 
 ```powershell
 npm run build
 npm run dev
 ```
 
-浏览器 `http://localhost:3000`：仪表盘三卡渲染、无练习记录提示；`/scenarios`：4 张卡片；自定义输入“和外国客户谈判交期”→ 生成草稿 → 编辑 → 保存并开始 → 跳转 `/practice/{id}`（Task 13 前显示 404 属预期）。
+浏览器 `http://localhost:3000`：仪表盘三卡渲染（本周练习数字为琥珀色）、无练习记录提示；导航当前页高亮（访问 /scenarios 时“场景”激活）；`/scenarios`：4 张卡片；自定义表单每个字段有 label 与 * 必填标记；输入“和外国客户谈判交期”→ 生成草稿 → 编辑 → 保存并开始 → 跳转 `/practice/{id}`（Task 13 前显示 404 属预期）。
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```powershell
-git add app/page.tsx app/scenarios/page.tsx
-git commit -m "feat: dashboard and scenarios pages"
+git add components/Nav.tsx app/layout.tsx app/page.tsx app/scenarios/page.tsx
+git commit -m "feat: dashboard and scenarios pages with nav active state"
 ```
 
 ---
@@ -1991,6 +2181,7 @@ git commit -m "feat: dashboard and scenarios pages"
 ```tsx
 "use client"
 
+import { Microphone, Stop } from "@phosphor-icons/react"
 import { useRef, useState } from "react"
 
 export default function Recorder({ onRecorded, disabled }: { onRecorded: (b: Blob) => void; disabled?: boolean }) {
@@ -2018,12 +2209,32 @@ export default function Recorder({ onRecorded, disabled }: { onRecorded: (b: Blo
     }
   }
 
+  function toggle() {
+    if (recording) {
+      ref.current?.stop()
+      setRecording(false)
+    } else {
+      start()
+    }
+  }
+
   return (
     <div>
-      <button className="btn" onClick={() => { if (recording) { ref.current?.stop(); setRecording(false) } else start() }}
-        disabled={disabled}>
-        {recording ? "■ 停止录音" : "🎤 说话"}
+      <button
+        type="button"
+        className={`btn ${recording ? "btn-danger recording" : ""}`}
+        onClick={toggle}
+        disabled={disabled}
+        aria-pressed={recording}
+      >
+        {recording
+          ? <Stop size={20} weight="fill" aria-hidden="true" />
+          : <Microphone size={20} aria-hidden="true" />}
+        {recording ? "停止录音" : "说话"}
       </button>
+      <span aria-live="polite" className="muted" style={{ display: recording ? "block" : "none" }}>
+        录音中…
+      </span>
       {denied && <p className="muted">麦克风不可用，请用键盘输入。</p>}
     </div>
   )
@@ -2035,6 +2246,7 @@ export default function Recorder({ onRecorded, disabled }: { onRecorded: (b: Blo
 ```tsx
 "use client"
 
+import { CheckCircle, Circle } from "@phosphor-icons/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import Recorder from "@/components/Recorder"
@@ -2142,9 +2354,15 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       <div className="card">
         <b>{scenario.title}</b>
         <div className="muted">{scenario.persona}</div>
-        <div style={{ marginTop: 8 }}>
+        <div className="mt-2" role="list" aria-label="练习目标进度">
+          <div className="muted">已完成 {goalProgress.length}/{scenario.goals.length}</div>
           {scenario.goals.map((g, i) => (
-            <div key={i}>{goalProgress.includes(i) ? "✅" : "⬜"} {i}. {g}</div>
+            <div key={i} role="listitem" className={goalProgress.includes(i) ? "goal-done" : ""}>
+              {goalProgress.includes(i)
+                ? <CheckCircle size={18} weight="fill" aria-hidden="true" />
+                : <Circle size={18} aria-hidden="true" />}{" "}
+              {i}. {g}
+            </div>
           ))}
         </div>
         {ttsDown && <span className="chip">语音服务离线（文字模式）</span>}
@@ -2223,6 +2441,7 @@ git commit -m "feat: practice page with frontend turn orchestration"
 ```tsx
 "use client"
 
+import { SpeakerHigh } from "@phosphor-icons/react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Report, Session } from "@/lib/domain/types"
@@ -2271,7 +2490,12 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             <p>你说：{c.original}</p>
             <p>建议：{c.improved}</p>
             <p className="muted">{c.explanation}</p>
-            {turn?.audioUrl && <audio controls src={turn.audioUrl} />}
+            {turn?.audioUrl && (
+              <div className="row">
+                <SpeakerHigh size={20} aria-hidden="true" />
+                <audio controls src={turn.audioUrl} aria-label={`原声回放：${c.original}`} />
+              </div>
+            )}
           </div>
         )
       })}
@@ -2339,7 +2563,7 @@ export default function VocabPage() {
             <div className="muted">{w.example}</div>
             <div className="muted">使用 {w.timesEncountered} 次{w.lastUsedAt ? ` · 上次 ${new Date(w.lastUsedAt).toLocaleDateString("zh-CN")}` : ""}</div>
           </div>
-          <select className="input" style={{ width: 120 }} value={w.status} onChange={e => change(w.id, e.target.value as VocabStatus)}>
+          <select className="input" style={{ width: 120 }} aria-label={`状态：${w.word}`} value={w.status} onChange={e => change(w.id, e.target.value as VocabStatus)}>
             {(["new", "learning", "mastered", "ignored"] as VocabStatus[]).map(s => (
               <option key={s} value={s}>{statusLabel[s]}</option>
             ))}

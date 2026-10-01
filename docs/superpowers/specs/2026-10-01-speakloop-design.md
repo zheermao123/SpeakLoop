@@ -284,6 +284,16 @@ MVP 对策（均已纳入）：文字先显 + TTS 异步播放（感知延迟≈
 | `/report/[id]` | 总评 + 亮点 + 逐句纠错卡片（**原声回放** + 改进对照）+ 生词候选采纳/忽略 |
 | `/vocab` | 生词列表（状态、来源场次、使用次数、lastUsedAt）、标记掌握、删除 |
 
+### 8.1 视觉设计（活泼学习风 · Claymorphism，2026-10-01 评审后增补）
+
+依据：ui-ux-pro-max 技能库命中结果——product 域 "Language Learning App"（进度可视化优先）+ style 域 claymorphism + color 域 LMS 教育色板。
+
+- **色彩 token（LMS 教育色板）**：primary `#0D9488` 深青（on-primary 黑字）/ accent `#D97706` 琥珀（进度与成就）/ secondary `#2DD4BF` / background `#F0FDFA` / foreground `#134E4A` / card `#FFFFFF` / muted `#E8F1F4` / muted-fg `#475569`（白底 ≈7:1）/ border `#5EEAD4` / destructive `#DC2626` / ring `#0D9488`
+- **造型 token（Claymorphism）**：圆角 16-24px（`--radius-md/lg`）；3px 厚边框；双阴影 `inset -2px -2px 8px` + `4px 4px 8px`；软按压 `scale(0.97)` 200ms ease-out；完成态弹跳 `cubic-bezier(0.34,1.56,0.64,1)`（仅微动效）
+- **字体**：Baloo 2（标题）+ Plus Jakarta Sans（正文），system-ui 回退
+- **无障碍硬性**（该风格 accessibility=conditional）：文字对比 ≥4.5:1；`:focus-visible` 2px ring 焦点环；`prefers-reduced-motion` 兜底；按钮 min-height 44px；图标一律 Phosphor 矢量（`@phosphor-icons/react`），禁止 emoji 作结构性图标；录音按钮 `aria-pressed`、录音状态 `aria-live`
+- **间距节奏**：`--space-1..5` = 4/8/16/24/32px
+
 ## 9. 错误处理
 
 | 场景 | 处理 |
