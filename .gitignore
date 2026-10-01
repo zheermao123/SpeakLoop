@@ -1,0 +1,12 @@
+node_modules/
+.next/
+data/
+.env
+*.tsbuildinfo
+next-env.d.ts
+ai-server/models/
+ai-server/__pycache__/
+__pycache__/
+*.pyc
+.superpowers/
+.opencode/
