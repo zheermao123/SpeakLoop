@@ -1,3 +1,4 @@
+import ctypes
 import io
 import os
 import time
@@ -87,7 +88,7 @@ if ROLE == "asr":
         for frame in container.decode(audio=0):
             rf = resampler.resample(frame)
             for f in (rf if isinstance(rf, list) else [rf]):
-                chunks.append(np.frombuffer(f.planes[0].to_bytes(), dtype=np.int16))
+                chunks.append(np.frombuffer(ctypes.string_at(f.planes[0].buffer_ptr, f.planes[0].buffer_size), dtype=np.int16))
         if not chunks:
             raise ValueError("no audio stream found")
         return np.concatenate(chunks).astype(np.float32) / 32768.0
