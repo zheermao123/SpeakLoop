@@ -73,3 +73,34 @@ if ROLE == "tts":
             return Response(content=buf.getvalue(), media_type="audio/wav")
         except Exception as e:  # noqa: BLE001
             raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+if ROLE == "asr":
+    import av
+    from fastapi import File, UploadFile
+
+    def decode_audio(data: bytes) -> np.ndarray:
+        """任意容器(webm/wav/mp3) -> 16kHz mono float32 [-1,1]"""
+        container = av.open(io.BytesIO(data))
+        resampler = av.AudioResampler(format="s16", layout="mono", rate=16000)
+        chunks = []
+        for frame in container.decode(audio=0):
+            rf = resampler.resample(frame)
+            for f in (rf if isinstance(rf, list) else [rf]):
+                chunks.append(np.frombuffer(f.planes[0].to_bytes(), dtype=np.int16))
+        if not chunks:
+            raise ValueError("no audio stream found")
+        return np.concatenate(chunks).astype(np.float32) / 32768.0
+
+    @app.post("/stt")
+    async def stt(file: UploadFile = File(...)):
+        try:
+            data = await file.read()
+            pcm = decode_audio(data)
+            model = get_asr()
+            t0 = time.time()
+            results = model.transcribe(audio=(pcm, 16000), language="English")
+            elapsed = time.time() - t0
+            return {"text": results[0].text, "elapsed": round(elapsed, 2)}
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(status_code=500, detail=str(e)) from e
