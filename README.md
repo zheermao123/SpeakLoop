@@ -11,11 +11,12 @@ npm run dev
 
 打开 http://localhost:3000
 
-## 真实语音（需 ai-server 双服务）
+## 真实语音 + 真实 Chat
 
-1. 按 `docs/superpowers/plans/2026-10-01-speakloop-phase0-ai-server.md` 部署（asr :8100 / tts :8101，`scripts/start-ai.ps1` 一键拉起）
+1. 部署 ai-server 双服务（`docs/superpowers/plans/2026-10-01-speakloop-phase0-ai-server.md`），`scripts/start-ai.ps1` 一键拉起（asr :8100 / tts :8101，冷载约 2-3 分钟）
 2. `.env` 设置：`STT_PROVIDER=qwen3-local`、`TTS_PROVIDER=qwen3-local`
-3. `npm run doctor` 自检
+3. 真实 Chat（可选）：`CHAT_PROVIDER=openai-compatible` + `CHAT_BASE_URL`/`CHAT_API_KEY`/`CHAT_MODEL`（任意 OpenAI 兼容厂商）
+4. `npm run doctor` 自检 → 打开首页（自动双预热）
 
 ## 环境变量
 
