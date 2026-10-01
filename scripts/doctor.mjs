@@ -1,4 +1,4 @@
-import { access, writeFile, unlink, mkdir } from "node:fs/promises"
+import { writeFile, unlink, mkdir } from "node:fs/promises"
 import path from "node:path"
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"

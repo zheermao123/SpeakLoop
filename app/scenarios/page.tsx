@@ -13,57 +13,84 @@ export default function ScenariosPage() {
   const [list, setList] = useState<Scenario[]>([])
   const [description, setDescription] = useState("")
   const [draft, setDraft] = useState<Scenario | null>(null)
+  const [goalsText, setGoalsText] = useState("")
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
 
-  const load = () => fetch("/api/scenarios").then(r => r.json()).then(setList)
+  const load = () => fetch("/api/scenarios").then(r => r.json()).then(setList).catch(() => {})
   useEffect(() => { load() }, [])
 
   async function startPractice(scenarioId: string) {
-    const s = await fetch("/api/sessions", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scenarioId }),
-    }).then(r => r.json())
-    router.push(`/practice/${s.id}`)
+    setError("")
+    try {
+      const r = await fetch("/api/sessions", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scenarioId }),
+      })
+      if (!r.ok) throw new Error(`创建练习失败 (${r.status})`)
+      const s = await r.json()
+      if (!s?.id) throw new Error("创建练习失败：无效响应")
+      router.push(`/practice/${s.id}`)
+    } catch (e) {
+      setError((e as Error).message)
+    }
   }
 
   async function genDraft() {
-    setBusy(true)
-    const d = await fetch("/api/scenarios/draft", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description }),
-    }).then(r => r.json())
-    setDraft({ ...d, goals: d.goals.join("\n") } as unknown as Scenario)
-    setBusy(false)
+    setBusy(true); setError("")
+    try {
+      const r = await fetch("/api/scenarios/draft", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description }),
+      })
+      if (!r.ok) throw new Error(`草稿生成失败 (${r.status})`)
+      const d: Scenario = await r.json()
+      setDraft(d)
+      setGoalsText(d.goals.join("\n"))
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function saveDraft() {
     if (!draft) return
-    setBusy(true)
-    const saved = await fetch("/api/scenarios", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: draft.title, persona: draft.persona,
-        goals: String(draft.goals).split("\n").map(s => s.trim()).filter(Boolean),
-        difficulty: draft.difficulty,
-      }),
-    }).then(r => r.json())
-    setBusy(false)
-    setDraft(null)
-    setDescription("")
-    await load()
-    await startPractice(saved.id)
+    setBusy(true); setError("")
+    try {
+      const r = await fetch("/api/scenarios", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: draft.title, persona: draft.persona,
+          goals: goalsText.split("\n").map(s => s.trim()).filter(Boolean),
+          difficulty: draft.difficulty,
+        }),
+      })
+      if (!r.ok) throw new Error(`保存失败 (${r.status})`)
+      const saved = await r.json()
+      if (!saved?.id) throw new Error("保存失败：无效响应")
+      setDraft(null)
+      setDescription("")
+      await load()
+      await startPractice(saved.id)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
     <div>
       <h3>选择场景</h3>
+      {error && <div className="card"><span className="muted">{error}</span></div>}
       {list.map(s => (
         <div key={s.id} className="card row">
           <div style={{ flex: 1 }}>
             <b>{s.title}</b> <span className="chip">{s.difficulty}</span>
             <div className="muted">{s.persona}</div>
           </div>
-          <button className="btn" onClick={() => startPractice(s.id)}>开始练习</button>
+          <button className="btn" disabled={busy} onClick={() => startPractice(s.id)}>开始练习</button>
         </div>
       ))}
       <h3>自定义场景</h3>
@@ -82,8 +109,8 @@ export default function ScenariosPage() {
             <textarea className="input" rows={2} value={draft.persona}
               onChange={e => setDraft({ ...draft, persona: e.target.value })} />
             <label className="field">练习目标（每行一个，英文） <span className="req">*</span></label>
-            <textarea className="input" rows={3} value={String(draft.goals)}
-              onChange={e => setDraft({ ...draft, goals: e.target.value.split("\n") as unknown as string[] })} />
+            <textarea className="input" rows={3} value={goalsText}
+              onChange={e => setGoalsText(e.target.value)} />
             <label className="field">难度</label>
             <select className="input" value={draft.difficulty}
               onChange={e => setDraft({ ...draft, difficulty: e.target.value as Scenario["difficulty"] })}>

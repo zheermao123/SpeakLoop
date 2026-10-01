@@ -54,6 +54,15 @@ it("addWord 去重（大小写不敏感）", async () => {
   expect(again.translation).toBe("阻碍")
 })
 
+it("addWord 对已存在词应用新状态", async () => {
+  await addWord({ word: "blocker", translation: "阻碍", example: "e", sourceSessionId: "s1" })
+  const w = await addWord({ word: "blocker", translation: "x", example: "y", sourceSessionId: "s2", status: "ignored" })
+  expect(w.status).toBe("ignored")
+  const all = await listWords()
+  expect(all).toHaveLength(1)
+  expect(all[0].status).toBe("ignored")
+})
+
 it("markUsedInSession 更新计数与状态", async () => {
   await addWord({ word: "blocker", translation: "阻碍", example: "e", sourceSessionId: "s1" })
   const active = (await listWords()).filter(x => x.status !== "ignored" && x.status !== "mastered")

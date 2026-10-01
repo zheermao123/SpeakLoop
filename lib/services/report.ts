@@ -19,7 +19,12 @@ export function backfillCorrections(raw: RawReport, turns: Turn[]): ReportCorrec
     const n = norm(c.original)
     if (!n) continue
     let turn = turns.find(t => t.id === c.turnId && norm(t.userText).length > 0)
-    if (!turn) turn = turns.find(t => norm(t.userText).includes(n) || n.includes(norm(t.userText)))
+    if (!turn) {
+      turn = turns.find(t => {
+        const u = norm(t.userText)
+        return u.length > 0 && (u.includes(n) || n.includes(u))
+      })
+    }
     if (!turn) {
       console.warn("[report] drop hallucinated correction:", c.original)
       continue

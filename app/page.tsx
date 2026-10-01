@@ -11,9 +11,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch("/api/sessions").then(r => r.json()).then(setSessions)
-    fetch("/api/scenarios").then(r => r.json()).then(setScenarios)
-    fetch("/api/vocab").then(r => r.json()).then(setWords).then(() => setLoading(false))
+    Promise.all([
+      fetch("/api/sessions").then(r => r.json()).then(setSessions).catch(() => {}),
+      fetch("/api/scenarios").then(r => r.json()).then(setScenarios).catch(() => {}),
+      fetch("/api/vocab").then(r => r.json()).then(setWords).catch(() => {}),
+    ]).then(() => setLoading(false))
     fetch("/api/tts/warmup", { method: "POST" }).catch(() => {})
   }, [])
 

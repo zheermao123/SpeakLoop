@@ -15,7 +15,13 @@ export async function addWord(input: {
 }): Promise<VocabWord> {
   const key = input.word.trim().toLowerCase()
   const existing = (await listWords()).find(x => x.word.toLowerCase() === key)
-  if (existing) return existing
+  if (existing) {
+    if (input.status && input.status !== existing.status) {
+      await setStatus(existing.id, input.status)
+      return { ...existing, status: input.status }
+    }
+    return existing
+  }
   const word: VocabWord = {
     id: randomUUID(),
     word: input.word.trim(),

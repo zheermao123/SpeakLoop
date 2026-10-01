@@ -7,7 +7,9 @@ import Recorder from "@/components/Recorder"
 import { Scenario, Session, Turn } from "@/lib/domain/types"
 
 type Bubble = { role: "user" | "ai" | "coach"; text: string }
-type Step = { name: "stt" | "chat"; retry: () => void }
+type Step = { name: "stt" | "chat" | "save"; retry: () => void }
+
+const stepLabel: Record<Step["name"], string> = { stt: "语音识别", chat: "对话", save: "轮次保存" }
 
 export default function PracticePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -71,13 +73,33 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       sttProvider: pending.current?.turnId ? "mock" : "keyboard",
       createdAt: new Date().toISOString(),
     }
-    await fetch(`/api/sessions/${session!.id}/turns`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ turn, goalsDone }),
-    })
+    const ok = await persistTurn(turn, goalsDone)
+    if (!ok) return
     pending.current = null
     setBusy(false)
     playTts(reply)
+  }
+
+  async function persistTurn(turn: Turn, goalsDone: number[]): Promise<boolean> {
+    const r = await fetch(`/api/sessions/${session!.id}/turns`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ turn, goalsDone }),
+    })
+    if (!r.ok) {
+      setBusy(false)
+      setFailed({
+        name: "save",
+        retry: async () => {
+          if (await persistTurn(turn, goalsDone)) {
+            pending.current = null
+            setBusy(false)
+            playTts(turn.aiText)
+          }
+        },
+      })
+      return false
+    }
+    return true
   }
 
   async function playTts(text: string) {
@@ -86,7 +108,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, speaker: scenario?.voice }),
       }).then(r => { if (!r.ok) throw new Error(); return r.arrayBuffer() })
-      new Audio(URL.createObjectURL(new Blob([wav], { type: "audio/wav" }))).play()
+      const audio = new Audio(URL.createObjectURL(new Blob([wav], { type: "audio/wav" })))
+      await audio.play()
       setTtsDown(false)
     } catch {
       setTtsDown(true)
@@ -95,11 +118,23 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   async function endPractice() {
     setBusy(true)
-    await fetch("/api/report", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: session!.id }),
-    })
-    router.push(`/report/${session!.id}`)
+    try {
+      const r = await fetch("/api/report", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: session!.id }),
+      })
+      if (r.status === 422) {
+        const { raw } = await r.json()
+        sessionStorage.setItem(`report-raw-${session!.id}`, raw ?? "")
+      } else if (!r.ok) {
+        setBusy(false)
+        setFailed({ name: "chat", retry: endPractice })
+        return
+      }
+      router.push(`/report/${session!.id}`)
+    } finally {
+      setBusy(false)
+    }
   }
 
   if (!session || !scenario) return <p className="muted">加载中…</p>
@@ -130,7 +165,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         {busy && <p className="muted">思考中…</p>}
         {failed && (
           <div className="card">
-            <span className="muted">{failed.name === "stt" ? "语音识别" : "对话"}失败</span>{" "}
+            <span className="muted">{stepLabel[failed.name]}失败</span>{" "}
             <button className="btn btn-secondary" onClick={failed.retry}>重试</button>
           </div>
         )}

@@ -47,6 +47,14 @@ it("回填校验：幻觉（无匹配）与空 original 被丢弃", () => {
   expect(backfillCorrections(r, [turn("t1", "I go yesterday")])).toHaveLength(0)
 })
 
+it("回填校验：空归一化轮次（中文/纯标点）不吸附幻觉纠错", () => {
+  const turns = [turn("t1", "你好！！"), turn("t2", "I go yesterday")]
+  const r = raw({ corrections: [
+    { turnId: "ghost", original: "never said this", type: "vocab", improved: "x", explanation: "y" },
+  ] })
+  expect(backfillCorrections(r, turns)).toHaveLength(0)
+})
+
 it("generateReport 全链路：报告落库、生词计数、会话结束", async () => {
   const s = await createSession("builtin-interview")
   await appendTurn(s.id, turn("t1", "I go yesterday because we hit a blocker"))
