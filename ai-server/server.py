@@ -1,6 +1,7 @@
 import ctypes
 import io
 import os
+import threading
 import time
 
 import numpy as np
@@ -14,36 +15,42 @@ if ROLE not in ("asr", "tts"):
 
 MODELS_DIR = os.path.join(os.path.dirname(__file__), "models")
 ASR_NAME = os.environ.get("ASR_MODEL", "Qwen3-ASR-0.6B")
+ASR_NAME = ASR_NAME.split("/")[-1]  # accept repo-id form, use local dirname
 TTS_NAME = "Qwen3-TTS-12Hz-1.7B-CustomVoice"
 
 app = FastAPI(title=f"speakloop-{ROLE}-server")
 _loaded: dict = {"asr": None, "tts": None}
+_model_lock = threading.RLock()
 
 
 def get_asr():
     if _loaded["asr"] is None:
-        from qwen_asr import Qwen3ASRModel
+        with _model_lock:
+            if _loaded["asr"] is None:
+                from qwen_asr import Qwen3ASRModel
 
-        _loaded["asr"] = Qwen3ASRModel.from_pretrained(
-            os.path.join(MODELS_DIR, ASR_NAME),
-            dtype=torch.bfloat16,
-            device_map="cuda:0",
-            attn_implementation="sdpa",
-            max_new_tokens=512,
-        )
+                _loaded["asr"] = Qwen3ASRModel.from_pretrained(
+                    os.path.join(MODELS_DIR, ASR_NAME),
+                    dtype=torch.bfloat16,
+                    device_map="cuda:0",
+                    attn_implementation="sdpa",
+                    max_new_tokens=512,
+                )
     return _loaded["asr"]
 
 
 def get_tts():
     if _loaded["tts"] is None:
-        from qwen_tts import Qwen3TTSModel
+        with _model_lock:
+            if _loaded["tts"] is None:
+                from qwen_tts import Qwen3TTSModel
 
-        _loaded["tts"] = Qwen3TTSModel.from_pretrained(
-            os.path.join(MODELS_DIR, TTS_NAME),
-            device_map="cuda:0",
-            dtype=torch.bfloat16,
-            attn_implementation="sdpa",
-        )
+                _loaded["tts"] = Qwen3TTSModel.from_pretrained(
+                    os.path.join(MODELS_DIR, TTS_NAME),
+                    device_map="cuda:0",
+                    dtype=torch.bfloat16,
+                    attn_implementation="sdpa",
+                )
     return _loaded["tts"]
 
 
@@ -63,28 +70,31 @@ if ROLE == "tts":
 
     @app.post("/tts")
     def tts(req: TTSRequest):
-        try:
-            model = get_tts()
-            kwargs = dict(text=req.text, language="English", speaker=req.speaker)
-            if req.instruct:
-                kwargs["instruct"] = req.instruct
-            wavs, sr = model.generate_custom_voice(**kwargs)
-            buf = io.BytesIO()
-            sf.write(buf, wavs[0], sr, format="WAV")
-            return Response(content=buf.getvalue(), media_type="audio/wav")
-        except Exception as e:  # noqa: BLE001
-            raise HTTPException(status_code=500, detail=str(e)) from e
+        with _model_lock:
+            try:
+                model = get_tts()
+                kwargs = dict(text=req.text, language="English", speaker=req.speaker)
+                if req.instruct:
+                    kwargs["instruct"] = req.instruct
+                wavs, sr = model.generate_custom_voice(**kwargs)
+                buf = io.BytesIO()
+                sf.write(buf, wavs[0], sr, format="WAV")
+                return Response(content=buf.getvalue(), media_type="audio/wav")
+            except Exception as e:  # noqa: BLE001
+                raise HTTPException(status_code=500, detail=str(e)) from e
 
     @app.post("/warmup")
     def tts_warmup():
-        t0 = time.time()
-        get_tts().generate_custom_voice(text="Hi.", language="English", speaker="Aiden")
-        return {"ok": True, "elapsed": round(time.time() - t0, 2)}
+        with _model_lock:
+            t0 = time.time()
+            get_tts().generate_custom_voice(text="Hi.", language="English", speaker="Aiden")
+            return {"ok": True, "elapsed": round(time.time() - t0, 2)}
 
 
 if ROLE == "asr":
     import av
     from fastapi import File, UploadFile
+    from fastapi.concurrency import run_in_threadpool
 
     def decode_audio(data: bytes) -> np.ndarray:
         """任意容器(webm/wav/mp3) -> 16kHz mono float32 [-1,1]"""
@@ -99,22 +109,28 @@ if ROLE == "asr":
             raise ValueError("no audio stream found")
         return np.concatenate(chunks).astype(np.float32) / 32768.0
 
-    @app.post("/stt")
-    async def stt(file: UploadFile = File(...)):
-        try:
-            data = await file.read()
-            pcm = decode_audio(data)
+    def _transcribe_turn(data: bytes) -> dict:
+        pcm = decode_audio(data)
+        with _model_lock:
             model = get_asr()
             t0 = time.time()
             results = model.transcribe(audio=(pcm, 16000), language="English")
             elapsed = time.time() - t0
-            return {"text": results[0].text, "elapsed": round(elapsed, 2)}
+        return {"text": results[0].text, "elapsed": round(elapsed, 2)}
+
+    @app.post("/stt")
+    async def stt(file: UploadFile = File(...)):
+        try:
+            data = await file.read()
+            result = await run_in_threadpool(_transcribe_turn, data)
+            return result
         except Exception as e:  # noqa: BLE001
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     @app.post("/warmup")
     def asr_warmup():
-        t0 = time.time()
-        silence = np.zeros(16000, dtype=np.float32)
-        get_asr().transcribe(audio=(silence, 16000), language="English")
-        return {"ok": True, "elapsed": round(time.time() - t0, 2)}
+        with _model_lock:
+            t0 = time.time()
+            silence = np.zeros(16000, dtype=np.float32)
+            get_asr().transcribe(audio=(silence, 16000), language="English")
+            return {"ok": True, "elapsed": round(time.time() - t0, 2)}

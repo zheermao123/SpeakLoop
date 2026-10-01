@@ -48,3 +48,14 @@
 
 - 冒烟结束：`Stop-Process` 两个服务 PID + 关闭脚本窗口，端口 8100/8101 无 LISTENING，无 speakloop python 进程残留。
 - 临时产物已删：`E:\EnglishDemo\tts_out.wav`、`ai-server\test_webm.webm`，及本轮/Task 4 冒烟 temp 日志（`%TEMP%\opencode\smoke-*` 等）。
+
+## final-review 补测（2026-10-01）
+
+- **守卫检查补测**：无 `AI_ROLE` 的 fresh shell 以 asr env `python -m uvicorn server:app --host 127.0.0.1 --port 8100` 启动（cwd `ai-server`）→ 立即输出 `env AI_ROLE must be 'asr' or 'tts'`，退出码 **1**（uvicorn 未启动、未绑定端口）——角色守卫生效。
+
+## final-review 修复
+
+1. **ASR_MODEL repo-id 归一化**：`ASR_NAME = ASR_NAME.split("/")[-1]`——env 传 `Qwen/Qwen3-ASR-1.7B` 等 repo-id 形式时取末段作本地目录名，避免拼出不存在的嵌套路径而触发运行时网络下载。
+2. **模型锁并发护栏**：新增模块级 `_model_lock`（`threading.RLock`）；`get_asr`/`get_tts` 改为双重检查持锁加载；tts `/tts`、两个 `/warmup` 与 asr `/stt` 的加载+推理段均持锁执行。实现注记：端点持锁时会再调用 `get_*`（其内部同样取锁），非重入 `Lock` 在冷启动首个请求（含 /warmup）必死锁（已临时脚本实测复现挂起），故用可重入 `RLock`，保持给定结构不变。
+- **净效果**：防止冷启动双载（8GB 卡双模型同载几乎必然 OOM）与 /stt 阻塞事件循环（async 签名保留，转写经 `run_in_threadpool` 下放线程池）；TTS 每进程串行化，符合「顺序执行错峰」。
+- **实测数字不受影响**：本轮仅代码护栏修复与文档补全，未重新运行任何模型（冒烟仅 /health，不加载模型），上表与 Task 4/5/6 各项实测值维持原记录。
