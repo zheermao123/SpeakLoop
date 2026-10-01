@@ -38,6 +38,14 @@ it("containsWord 支持短语（子串）", () => {
   expect(containsWord("Let's touch base tomorrow.", "touch base")).toBe(true)
 })
 
+it("containsWord 短语：撇号/标点/空白对称归一", () => {
+  expect(containsWord("let's touch base tomorrow.", "let's touch base")).toBe(true)
+  expect(containsWord("lets touch base tomorrow.", "let's touch base")).toBe(true)
+  expect(containsWord("We touch, base and go.", "touch base")).toBe(true)
+  expect(containsWord("touch\n\nbase", "touch base")).toBe(true)
+  expect(containsWord("totally different phrase here", "touch base")).toBe(false)
+})
+
 it("addWord 去重（大小写不敏感）", async () => {
   await addWord({ word: "Blocker", translation: "阻碍", example: "e", sourceSessionId: "s1" })
   const again = await addWord({ word: "blocker", translation: "x", example: "y", sourceSessionId: "s2" })

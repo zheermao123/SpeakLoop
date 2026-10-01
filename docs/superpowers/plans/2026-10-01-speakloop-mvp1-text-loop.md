@@ -649,6 +649,14 @@ it("containsWord 支持短语（子串）", () => {
   expect(containsWord("Let's touch base tomorrow.", "touch base")).toBe(true)
 })
 
+it("containsWord 短语：撇号/标点/空白对称归一", () => {
+  expect(containsWord("let's touch base tomorrow.", "let's touch base")).toBe(true)
+  expect(containsWord("lets touch base tomorrow.", "let's touch base")).toBe(true)
+  expect(containsWord("We touch, base and go.", "touch base")).toBe(true)
+  expect(containsWord("touch\n\nbase", "touch base")).toBe(true)
+  expect(containsWord("totally different phrase here", "touch base")).toBe(false)
+})
+
 it("addWord 去重（大小写不敏感）", async () => {
   await addWord({ word: "Blocker", translation: "阻碍", example: "e", sourceSessionId: "s1" })
   const again = await addWord({ word: "blocker", translation: "x", example: "y", sourceSessionId: "s2" })
@@ -745,10 +753,18 @@ function stemTokens(text: string): string[] {
   return text.split(/[^A-Za-z]+/).filter(Boolean).map(stem)
 }
 
+function normalizePhrase(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z]+/g, " ")
+    .trim()
+}
+
 export function containsWord(text: string, word: string): boolean {
   const target = word.trim().toLowerCase()
   if (target.includes(" ")) {
-    return text.toLowerCase().includes(target.replace(/[^a-z ]/g, "").replace(/\s+/g, " ").trim())
+    return normalizePhrase(text).includes(normalizePhrase(target))
   }
   const t = stem(target)
   return stemTokens(text).some(tok => stemFamily(tok, t))
@@ -775,7 +791,7 @@ export async function markUsedInSession(active: VocabWord[], transcript: string)
 - [ ] **Step 4: 运行确认通过**
 
 Run: `npx vitest run tests/vocab-service.test.ts`
-Expected: 5 passed
+Expected: 6 passed
 
 - [ ] **Step 5: Commit**
 

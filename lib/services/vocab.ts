@@ -67,10 +67,18 @@ function stemTokens(text: string): string[] {
   return text.split(/[^A-Za-z]+/).filter(Boolean).map(stem)
 }
 
+function normalizePhrase(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z]+/g, " ")
+    .trim()
+}
+
 export function containsWord(text: string, word: string): boolean {
   const target = word.trim().toLowerCase()
   if (target.includes(" ")) {
-    return text.toLowerCase().includes(target.replace(/[^a-z ]/g, "").replace(/\s+/g, " ").trim())
+    return normalizePhrase(text).includes(normalizePhrase(target))
   }
   const t = stem(target)
   return stemTokens(text).some(tok => stemFamily(tok, t))
