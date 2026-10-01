@@ -44,7 +44,7 @@ export async function listScenarios(): Promise<Scenario[]> {
   const existing = await read<Scenario>("scenarios")
   if (existing.length > 0) return existing
   await update<Scenario>("scenarios", () => SEED_SCENARIOS)
-  return SEED_SCENARIOS
+  return structuredClone(SEED_SCENARIOS)
 }
 
 export async function getScenario(id: string): Promise<Scenario | undefined> {

@@ -33,3 +33,18 @@ it("draftScenario 返回未落库草稿（id 为空）", async () => {
   expect(d.title).toContain("谈判")
   expect((await listScenarios()).length).toBe(4)
 })
+
+it("首次播种返回隔离副本，变异不污染种子", async () => {
+  const first = await listScenarios()
+  first.reverse()
+  first[0].title = "HACKED"
+  const { rmSync } = await import("node:fs")
+  const { join } = await import("node:path")
+  rmSync(join(process.env.DATA_DIR!, "scenarios.json"))
+  const again = await listScenarios()
+  expect(again).toHaveLength(4)
+  expect(again.some(s => s.title === "HACKED")).toBe(false)
+  expect(again.map(s => s.id)).toEqual([
+    "builtin-interview", "builtin-standup", "builtin-oneonone", "builtin-smalltalk",
+  ])
+})
