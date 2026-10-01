@@ -54,6 +54,6 @@ it("工具函数：完整标记剥离与部分前缀检测", () => {
   expect(stripGoalMarkers("a [GOAL_DONE:3] b", goals)).toBe("a  b")
   expect(goals).toEqual([3])
   expect(trailingMarkerPrefix("x [GOAL_D")).toBe(7)
-  expect(trailingMarkerPrefix("x [GOAL_DONE:12")).toBe(14)
+  expect(trailingMarkerPrefix("x [GOAL_DONE:123")).toBe(14)
   expect(trailingMarkerPrefix("clean.")).toBe(0)
 })
