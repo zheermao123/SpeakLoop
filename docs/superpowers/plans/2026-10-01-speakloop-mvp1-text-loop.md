@@ -13,7 +13,7 @@
 - 仓库根 `E:\EnglishDemo`，PowerShell 5.1；每任务一次 commit，消息格式 `feat|fix|chore|test: <内容>`
 - 目录约定：`lib/domain/types.ts` 唯一类型出处；`lib/services/*` 业务；`lib/store/json-store.ts` 唯一存储入口；`lib/providers/*` 供应商
 - 存储目录 `data/`（gitignore）；测试用 `process.env.DATA_DIR` 指向临时目录，`json-store` 每次调用时读取该 env
-- Provider env：`STT_PROVIDER`/`CHAT_PROVIDER`/`TTS_PROVIDER`（本计划内只有 `mock`）；`AI_SERVER_URL` 默认 `http://127.0.0.1:8100`（本计划不使用）
+- Provider env：`STT_PROVIDER`/`CHAT_PROVIDER`/`TTS_PROVIDER`（本计划内只有 `mock`）；`STT_BASE_URL` 默认 `http://127.0.0.1:8100`（asr-server）、`TTS_BASE_URL` 默认 `http://127.0.0.1:8101`（tts-server）——双服务形态见计划 A（transformers 钉版互斥的确定性解），本计划不实际使用
 - 文案规则：AI 对话内容全英文；报告/解释/UI 全中文
 - UI 规则（依据 spec §8.1）：样式一律用 `app/globals.css` 中的设计 token（色彩/圆角/阴影/间距变量），禁止组件内新写硬编码颜色；图标一律 `@phosphor-icons/react` 矢量图标（装饰性 `aria-hidden`，控件内配可访问名），禁止 emoji 作图标/状态；交互控件满足 `min-height:44px`、可见焦点环、`aria-pressed`/`aria-live` 状态；动效遵守 `prefers-reduced-motion` 兜底
 - TTS mock 返回 150ms 静音 WAV；STT mock 返回固定文本；Chat mock 按 system 前缀分流（对话/报告/场景草稿/模式）
@@ -313,7 +313,8 @@ export default function Home() {
 STT_PROVIDER=mock
 CHAT_PROVIDER=mock
 TTS_PROVIDER=mock
-AI_SERVER_URL=http://127.0.0.1:8100
+STT_BASE_URL=http://127.0.0.1:8100
+TTS_BASE_URL=http://127.0.0.1:8101
 ```
 
 `.gitignore`（本计划可独立于计划 A 执行，必须自带忽略规则；vitest 未设 `DATA_DIR` 时会向仓库根写 `data/`，`next build` 产生 `.next/`）：
@@ -2663,12 +2664,17 @@ try {
   check("数据目录可写", false, String(e))
 }
 
-const base = process.env.AI_SERVER_URL ?? "http://127.0.0.1:8100"
-try {
-  const r = await fetch(`${base}/health`)
-  check("ai-server /health", r.ok, `${base} -> ${r.status}`)
-} catch {
-  check("ai-server /health", false, `${base} 不可达（文字模式仍可用）`)
+const services = [
+  { name: "asr-server /health", base: process.env.STT_BASE_URL ?? "http://127.0.0.1:8100" },
+  { name: "tts-server /health", base: process.env.TTS_BASE_URL ?? "http://127.0.0.1:8101" },
+]
+for (const s of services) {
+  try {
+    const r = await fetch(`${s.base}/health`)
+    check(s.name, r.ok, `${s.base} -> ${r.status}`)
+  } catch {
+    check(s.name, false, `${s.base} 不可达（文字模式仍可用）`)
+  }
 }
 
 try {
@@ -2698,9 +2704,9 @@ npm run dev
 
 打开 http://localhost:3000
 
-## 真实语音（需 ai-server）
+## 真实语音（需 ai-server 双服务）
 
-1. 按 `docs/superpowers/plans/2026-10-01-speakloop-phase0-ai-server.md` 部署
+1. 按 `docs/superpowers/plans/2026-10-01-speakloop-phase0-ai-server.md` 部署（asr :8100 / tts :8101，`scripts/start-ai.ps1` 一键拉起）
 2. `.env` 设置：`STT_PROVIDER=qwen3-local`、`TTS_PROVIDER=qwen3-local`
 3. `npm run doctor` 自检
 
@@ -2719,7 +2725,7 @@ npm run build
 npm run doctor
 ```
 
-Expected: 测试全绿（约 30 个用例）；build 成功；doctor 输出 ai-server 不可达但整体提示文字模式可用（退出码 1 属预期，此时无 GPU 服务）。
+Expected: 测试全绿（约 30 个用例）；build 成功；doctor 输出 asr/tts 双服务不可达但整体提示文字模式可用（退出码 1 属预期，此时无 GPU 服务）。
 
 - [ ] **Step 4: Commit**
 

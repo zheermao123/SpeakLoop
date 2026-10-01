@@ -18,8 +18,9 @@
 | 对话交互 | 轮次交替式（录音→STT→LLM→TTS） | 实现简单、成本低、易调试，每轮有明确边界便于积累复盘数据 |
 | 编排方式 | 前端编排，后端细粒度 API | 每步可见可重试，天然适合 AI 产品调试 |
 | 分层 | API Route 薄路由 + services 业务层 | 防路由变胖，业务逻辑可迁移（NestJS/FastAPI） |
-| STT | **本地 Qwen3-ASR-0.6B**（RTX 3070/8GB；env 可切 1.7B） | 带口音英语 WER 16.62(0.6B)/16.07(1.7B)，优于 Whisper-large-v3(21.3)、GPT-4o-Transcribe(28.6)——口音鲁棒性是本应用命门；与 qwen-tts 同栈单 conda 环境 |
+| STT | **本地 Qwen3-ASR-0.6B**（RTX 3070/8GB；env 可切 1.7B） | 带口音英语 WER 16.62(0.6B)/16.07(1.7B)，优于 Whisper-large-v3(21.3)、GPT-4o-Transcribe(28.6)——口音鲁棒性是本应用命门 |
 | TTS | **本地 Qwen3-TTS-12Hz-1.7B-CustomVoice** | 零调用成本、9 种预置音色（英语母语 Aiden/Ryan）+ 语气指令 |
+| STT/TTS 部署形态 | **双 conda 环境双服务**（speakloop-asr :8100 / speakloop-tts :8101） | qwen-asr(0.0.6) 钉 `transformers==4.57.6`、qwen-tts(0.1.1) 钉 `==4.57.3`，PyPI 元数据核实互斥，单环境无解；拆分后官方包零改动 |
 | Chat 服务商 | 未定，Provider 抽象 + Mock 先行 | 全链路唯一外部云端依赖 |
 | 复盘形式 | 练后报告（纠错 + 亮点 + 生词候选 + 原声回放） | 不打断对话沉浸感 |
 | 生词闭环 | 自动提取 + 确认 → 结构化注入后续对话 | 真正形成"再用"闭环 |
@@ -56,14 +57,18 @@
 │      STTProvider / ChatProvider / TTSProvider           │
 │      mock ×3 + qwen3-local(STT/TTS) → 云端 Chat 可后补  │
 └──────────────┬──────────────────────────────────────────┘
-               │ HTTP (AI_SERVER_URL, 默认 127.0.0.1:8100)
-┌──────────────▼─────────────────────────────────────────┐
-│  ai-server（FastAPI 单进程, 双模型常驻）                  │
-│  /stt     Qwen3-ASR-0.6B（webm→PyAV 16kHz→transcribe）  │
-│  /tts     Qwen3-TTS-1.7B-CustomVoice → wav              │
-│  /health  /warmup                                      │
-│  CUDA bf16 + sdpa · 顺序执行错峰 · 显存 ≈6GB/8GB        │
-└────────────────────────────────────────────────────────┘
+               │ HTTP（STT_BASE_URL / TTS_BASE_URL）
+   ┌───────────▼──────────────────┐  ┌───────────────────────────┐
+   │ asr-server :8100              │  │ tts-server :8101           │
+   │ env speakloop-asr             │  │ env speakloop-tts          │
+   │ transformers==4.57.6          │  │ transformers==4.57.3       │
+   │ qwen-asr 0.0.6                │  │ qwen-tts 0.1.1             │
+   │ /stt  Qwen3-ASR-0.6B          │  │ /tts  Qwen3-TTS-1.7B-      │
+   │ （webm→PyAV 16kHz→transcribe） │  │      CustomVoice → wav     │
+   │ /health /warmup               │  │ /health /warmup            │
+   └───────────────────────────────┘  └───────────────────────────┘
+     同一份 ai-server/server.py，按 env AI_ROLE=asr|tts 加载对应模型
+     CUDA bf16 + sdpa · 同卡双模型常驻 · 前端编排天然错峰 · 显存 ≈6GB/8GB
 ```
 
 要点：
@@ -111,12 +116,13 @@ EnglishDemo/
 ├── tests/                        # Vitest 单测
 ├── data/                         # scenarios/sessions/vocab.json + audio/{sessionId}/
 ├── ai-server/                    # Python 独立服务（与 Node 依赖隔离）
-│   ├── server.py                 # FastAPI: /stt /tts /health /warmup
-│   └── requirements.txt          # qwen-tts, qwen-asr, fastapi, uvicorn
+│   ├── server.py                 # FastAPI（按 AI_ROLE 注册 /stt 或 /tts、/health、/warmup）
+│   ├── requirements-asr.txt      # qwen-asr, fastapi, uvicorn, python-multipart
+│   └── requirements-tts.txt      # qwen-tts, fastapi, uvicorn, python-multipart
 ├── scripts/
-│   ├── start-ai.ps1              # conda activate → uvicorn :8100
+│   ├── start-ai.ps1              # 拉起双进程（speakloop-asr :8100 + speakloop-tts :8101）
 │   └── doctor.ts                 # npm run doctor 环境自检
-└── .env.example                  # Provider 开关 + AI_SERVER_URL + 模型规格
+└── .env.example                  # Provider 开关 + STT_BASE_URL + TTS_BASE_URL
 ```
 
 ## 5. 数据模型（lib/domain/types.ts）
@@ -255,24 +261,25 @@ MVP 对策（均已纳入）：文字先显 + TTS 异步播放（感知延迟≈
 
 ### 7.1 模型与服务
 
-- 进程：FastAPI + uvicorn，单 conda 环境（`qwen-tts` + `qwen-asr` 同栈共存，阶段 0 spike 验证）
+- **双 conda 环境双服务**（transformers 钉版互斥的确定性解）：`speakloop-asr`（qwen-asr 0.0.6 / transformers 4.57.6）与 `speakloop-tts`（qwen-tts 0.1.1 / transformers 4.57.3）
+- 代码：同一份 `ai-server/server.py`，按 env `AI_ROLE=asr|tts` 条件 import 与注册路由，各自只加载本服务模型
 - 模型：`Qwen/Qwen3-ASR-0.6B`（默认，env `ASR_MODEL` 可切 1.7B）+ `Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice`
 - 精度与注意力：bf16 + PyTorch 原生 sdpa（Windows 免 flash-attn）
-- 显存：≈3.4GB(TTS) + ≈1.5GB(ASR) + 运行时开销 ≈ 6GB / 8GB（3070），两模型顺序执行错峰，spike 实测
+- 显存：≈3.4GB(TTS) + ≈1.5GB(ASR) + 运行时开销 ≈ 6GB / 8GB（3070），同卡双进程常驻，前端编排天然错峰，spike 实测
 - 权重：ModelScope 预下载到本地目录，运行时不拉取
-- 启动：`scripts/start-ai.ps1`（conda activate → uvicorn 127.0.0.1:8100）
+- 启动：`scripts/start-ai.ps1` 一次拉起双进程（asr → 127.0.0.1:8100，tts → 127.0.0.1:8101）
 
-### 7.2 端点
+### 7.2 端点（两服务路径一致，语义同前）
 
-- `POST /stt`：multipart 音频（webm/opus 原样）→ PyAV 解码归一 16kHz → `transcribe(language="English")` → `{text}`
-- `POST /tts`：`{text, speaker?, instruct?}` → `audio/wav`（language 固定 English）
-- `GET /health`：`{status:'ok', asr:bool, tts:bool}`
-- `POST /warmup`：对固定文本各执行一次 ASR/TTS，把冷启动挪到无感时机（前端仪表盘加载时 fire-and-forget 触发）
+- `POST /stt`（:8100）：multipart 音频（webm/opus 原样）→ PyAV 解码归一 16kHz → `transcribe(language="English")` → `{text}`
+- `POST /tts`（:8101）：`{text, speaker?, instruct?}` → `audio/wav`（language 固定 English）
+- `GET /health`（各自）：`{status:'ok', asr:bool}` / `{status:'ok', tts:bool}`
+- `POST /warmup`（各自）：对本服务模型执行一次首推理，把冷启动挪到无感时机（前端仪表盘加载时 fire-and-forget 触发两服务）
 
 ### 7.3 Next.js 侧与降级
 
-- `AI_SERVER_URL`（默认 `http://127.0.0.1:8100`）；`sttProvider/ttsProvider = 'mock' | 'qwen3-local'` 按 env 选择
-- ai-server 离线：STT→键盘输入降级提示；TTS→503 纯文字继续 + “语音服务离线”标识；Mock 模式返回模拟文本/本地提示音 wav
+- `STT_BASE_URL`（默认 `http://127.0.0.1:8100`）与 `TTS_BASE_URL`（默认 `http://127.0.0.1:8101`）；`sttProvider/ttsProvider = 'mock' | 'qwen3-local'` 按 env 选择
+- 任一服务离线：STT→键盘输入降级提示；TTS→503 纯文字继续 + “语音服务离线”标识；Mock 模式返回模拟文本/本地提示音 wav
 
 ## 8. UI 页面
 
@@ -300,11 +307,11 @@ MVP 对策（均已纳入）：文字先显 + TTS 异步播放（感知延迟≈
 |---|---|
 | STT/Chat/TTS 任一步失败 | 该步骤内联错误 + 重试按钮，已完成轮次保留 |
 | 麦克风权限拒绝 | 引导开启，可切键盘输入继续 |
-| ai-server 未启动 | STT→键盘降级；TTS→纯文字 + 离线标识 |
+| 任一 ai 服务未启动 | STT→键盘降级；TTS→纯文字 + 离线标识 |
 | 报告 JSON 解析失败 | zod 容错（剥围栏/兜底）→ 仍失败展示原始文本 + 重试 |
 | 报告幻觉 | turnId 回填校验丢弃不实条目 |
 | 无任何云端 Key | 全 Mock：模拟 STT 文本、模板 Chat 回复、提示音 TTS，全流程零成本可演示 |
-| 环境异常 | `npm run doctor`：Node 版本、data/ 可写、ai-server /health、GPU 显存（nvidia-smi） |
+| 环境异常 | `npm run doctor`：Node 版本、data/ 可写、asr/tts 双服务 /health、GPU 显存（nvidia-smi） |
 
 ## 10. 测试策略（Vitest，全部基于 Mock，不依赖 Key 与 GPU）
 
@@ -330,7 +337,7 @@ MVP 对策（均已纳入）：文字先显 + TTS 异步播放（感知延迟≈
 ## 12. 实施阶段
 
 **阶段 0 —— 半天 spike（风险前置）**
-ai-server 跑通 `/health` `/stt` `/tts`；验证：qwen-tts+qwen-asr 单环境共存、webm 解码、8GB 双模型显存实测、3070 上 STT/TTS 耗时实测（校准延迟预算）。**此阶段失败则架构支柱重议。**
+ai-server 双服务跑通 `/health` `/stt`（:8100）与 `/tts`（:8101）；验证：双环境独立运行（asr 4.57.6 / tts 4.57.3）、webm 解码、8GB 双模型显存实测、3070 上 STT/TTS 耗时实测（校准延迟预算）。**此阶段失败则架构支柱重议。**
 
 **MVP-1 —— 文字闭环（Mock 语音）**
 脚手架（目录结构/domain/json-store/doctor）、mock providers、内置场景+自定义、对话页（键盘输入+Mock STT+文字回复+Mock TTS 提示音）、goals 进度、报告（zod+回填+highlights）、生词闭环（四态+结构化注入）、仪表盘统计。**结束态：无 GPU 无 Key 全流程可跑。**
