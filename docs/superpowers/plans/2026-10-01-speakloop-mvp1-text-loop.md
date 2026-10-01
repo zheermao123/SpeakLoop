@@ -16,6 +16,7 @@
 - Provider env：`STT_PROVIDER`/`CHAT_PROVIDER`/`TTS_PROVIDER`（本计划内只有 `mock`）；`STT_BASE_URL` 默认 `http://127.0.0.1:8100`（asr-server）、`TTS_BASE_URL` 默认 `http://127.0.0.1:8101`（tts-server）——双服务形态见计划 A（transformers 钉版互斥的确定性解），本计划不实际使用
 - 文案规则：AI 对话内容全英文；报告/解释/UI 全中文
 - UI 规则（依据 spec §8.1）：样式一律用 `app/globals.css` 中的设计 token（色彩/圆角/阴影/间距变量），禁止组件内新写硬编码颜色；图标一律 `@phosphor-icons/react` 矢量图标（装饰性 `aria-hidden`，控件内配可访问名），禁止 emoji 作图标/状态；交互控件满足 `min-height:44px`、可见焦点环、`aria-pressed`/`aria-live` 状态；动效遵守 `prefers-reduced-motion` 兜底
+- UI 不变量（v1.3 勘误增补，spec §9）：**所有 fetch 必须检查 `r.ok`**；async 动作必须 try/finally 保证 busy 复位；列表加载必须有终结态（成功/失败/空），不得永久 loading；路由跳转前校验目标 id 存在，禁止 undefined 路由
 - TTS mock 返回 150ms 静音 WAV；STT mock 返回固定文本；Chat mock 按 system 前缀分流（对话/报告/场景草稿/模式）
 - 每任务完成时 `npm test` 全绿；UI 任务以 `npm run build` 通过为验证
 
@@ -194,6 +195,9 @@ h1, h2, h3, h4 { font-family: var(--font-heading); }
   font-family: var(--font-heading);
 }
 .nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   color: #ccfbf1;
   text-decoration: none;
   font-weight: 600;
@@ -665,6 +669,15 @@ it("addWord 去重（大小写不敏感）", async () => {
   expect(again.translation).toBe("阻碍")
 })
 
+it("addWord 对已存在词应用新状态", async () => {
+  await addWord({ word: "blocker", translation: "阻碍", example: "e", sourceSessionId: "s1" })
+  const w = await addWord({ word: "blocker", translation: "x", example: "y", sourceSessionId: "s2", status: "ignored" })
+  expect(w.status).toBe("ignored")
+  const all = await listWords()
+  expect(all).toHaveLength(1)
+  expect(all[0].status).toBe("ignored")
+})
+
 it("markUsedInSession 更新计数与状态", async () => {
   await addWord({ word: "blocker", translation: "阻碍", example: "e", sourceSessionId: "s1" })
   const active = (await listWords()).filter(x => x.status !== "ignored" && x.status !== "mastered")
@@ -701,7 +714,13 @@ export async function addWord(input: {
 }): Promise<VocabWord> {
   const key = input.word.trim().toLowerCase()
   const existing = (await listWords()).find(x => x.word.toLowerCase() === key)
-  if (existing) return existing
+  if (existing) {
+    if (input.status && input.status !== existing.status) {
+      await setStatus(existing.id, input.status)
+      return { ...existing, status: input.status }
+    }
+    return existing
+  }
   const word: VocabWord = {
     id: randomUUID(),
     word: input.word.trim(),
@@ -791,7 +810,7 @@ export async function markUsedInSession(active: VocabWord[], transcript: string)
 - [ ] **Step 4: 运行确认通过**
 
 Run: `npx vitest run tests/vocab-service.test.ts`
-Expected: 6 passed
+Expected: 7 passed
 
 - [ ] **Step 5: Commit**
 
@@ -1639,6 +1658,14 @@ it("回填校验：幻觉（无匹配）与空 original 被丢弃", () => {
   expect(backfillCorrections(r, [turn("t1", "I go yesterday")])).toHaveLength(0)
 })
 
+it("回填校验：空归一化轮次（中文/纯标点）不吸附幻觉纠错", () => {
+  const turns = [turn("t1", "你好！！"), turn("t2", "I go yesterday")]
+  const r = raw({ corrections: [
+    { turnId: "ghost", original: "never said this", type: "vocab", improved: "x", explanation: "y" },
+  ] })
+  expect(backfillCorrections(r, turns)).toHaveLength(0)
+})
+
 it("generateReport 全链路：报告落库、生词计数、会话结束", async () => {
   const s = await createSession("builtin-interview")
   await appendTurn(s.id, turn("t1", "I go yesterday because we hit a blocker"))
@@ -1687,7 +1714,12 @@ export function backfillCorrections(raw: RawReport, turns: Turn[]): ReportCorrec
     const n = norm(c.original)
     if (!n) continue
     let turn = turns.find(t => t.id === c.turnId && norm(t.userText).length > 0)
-    if (!turn) turn = turns.find(t => norm(t.userText).includes(n) || n.includes(norm(t.userText)))
+    if (!turn) {
+      turn = turns.find(t => {
+        const u = norm(t.userText)
+        return u.length > 0 && (u.includes(n) || n.includes(u))
+      })
+    }
     if (!turn) {
       console.warn("[report] drop hallucinated correction:", c.original)
       continue
@@ -1735,7 +1767,7 @@ export async function generateReport(sessionId: string): Promise<Report> {
 - [ ] **Step 4: 运行确认通过**
 
 Run: `npx vitest run tests/report-service.test.ts`
-Expected: 5 passed
+Expected: 6 passed
 
 - [ ] **Step 5: Commit**
 
@@ -2097,9 +2129,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch("/api/sessions").then(r => r.json()).then(setSessions)
-    fetch("/api/scenarios").then(r => r.json()).then(setScenarios)
-    fetch("/api/vocab").then(r => r.json()).then(setWords).then(() => setLoading(false))
+    Promise.all([
+      fetch("/api/sessions").then(r => r.json()).then(setSessions).catch(() => {}),
+      fetch("/api/scenarios").then(r => r.json()).then(setScenarios).catch(() => {}),
+      fetch("/api/vocab").then(r => r.json()).then(setWords).catch(() => {}),
+    ]).then(() => setLoading(false))
     fetch("/api/tts/warmup", { method: "POST" }).catch(() => {})
   }, [])
 
@@ -2166,57 +2200,84 @@ export default function ScenariosPage() {
   const [list, setList] = useState<Scenario[]>([])
   const [description, setDescription] = useState("")
   const [draft, setDraft] = useState<Scenario | null>(null)
+  const [goalsText, setGoalsText] = useState("")
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
 
-  const load = () => fetch("/api/scenarios").then(r => r.json()).then(setList)
+  const load = () => fetch("/api/scenarios").then(r => r.json()).then(setList).catch(() => {})
   useEffect(() => { load() }, [])
 
   async function startPractice(scenarioId: string) {
-    const s = await fetch("/api/sessions", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scenarioId }),
-    }).then(r => r.json())
-    router.push(`/practice/${s.id}`)
+    setError("")
+    try {
+      const r = await fetch("/api/sessions", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scenarioId }),
+      })
+      if (!r.ok) throw new Error(`创建练习失败 (${r.status})`)
+      const s = await r.json()
+      if (!s?.id) throw new Error("创建练习失败：无效响应")
+      router.push(`/practice/${s.id}`)
+    } catch (e) {
+      setError((e as Error).message)
+    }
   }
 
   async function genDraft() {
-    setBusy(true)
-    const d = await fetch("/api/scenarios/draft", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description }),
-    }).then(r => r.json())
-    setDraft({ ...d, goals: d.goals.join("\n") } as unknown as Scenario)
-    setBusy(false)
+    setBusy(true); setError("")
+    try {
+      const r = await fetch("/api/scenarios/draft", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description }),
+      })
+      if (!r.ok) throw new Error(`草稿生成失败 (${r.status})`)
+      const d: Scenario = await r.json()
+      setDraft(d)
+      setGoalsText(d.goals.join("\n"))
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function saveDraft() {
     if (!draft) return
-    setBusy(true)
-    const saved = await fetch("/api/scenarios", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: draft.title, persona: draft.persona,
-        goals: String(draft.goals).split("\n").map(s => s.trim()).filter(Boolean),
-        difficulty: draft.difficulty,
-      }),
-    }).then(r => r.json())
-    setBusy(false)
-    setDraft(null)
-    setDescription("")
-    await load()
-    await startPractice(saved.id)
+    setBusy(true); setError("")
+    try {
+      const r = await fetch("/api/scenarios", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: draft.title, persona: draft.persona,
+          goals: goalsText.split("\n").map(s => s.trim()).filter(Boolean),
+          difficulty: draft.difficulty,
+        }),
+      })
+      if (!r.ok) throw new Error(`保存失败 (${r.status})`)
+      const saved = await r.json()
+      if (!saved?.id) throw new Error("保存失败：无效响应")
+      setDraft(null)
+      setDescription("")
+      await load()
+      await startPractice(saved.id)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
     <div>
       <h3>选择场景</h3>
+      {error && <div className="card"><span className="muted">{error}</span></div>}
       {list.map(s => (
         <div key={s.id} className="card row">
           <div style={{ flex: 1 }}>
             <b>{s.title}</b> <span className="chip">{s.difficulty}</span>
             <div className="muted">{s.persona}</div>
           </div>
-          <button className="btn" onClick={() => startPractice(s.id)}>开始练习</button>
+          <button className="btn" disabled={busy} onClick={() => startPractice(s.id)}>开始练习</button>
         </div>
       ))}
       <h3>自定义场景</h3>
@@ -2235,8 +2296,8 @@ export default function ScenariosPage() {
             <textarea className="input" rows={2} value={draft.persona}
               onChange={e => setDraft({ ...draft, persona: e.target.value })} />
             <label className="field">练习目标（每行一个，英文） <span className="req">*</span></label>
-            <textarea className="input" rows={3} value={String(draft.goals)}
-              onChange={e => setDraft({ ...draft, goals: e.target.value.split("\n") as unknown as string[] })} />
+            <textarea className="input" rows={3} value={goalsText}
+              onChange={e => setGoalsText(e.target.value)} />
             <label className="field">难度</label>
             <select className="input" value={draft.difficulty}
               onChange={e => setDraft({ ...draft, difficulty: e.target.value as Scenario["difficulty"] })}>
@@ -2261,7 +2322,8 @@ npm run build
 npm run dev
 ```
 
-浏览器 `http://localhost:3000`：仪表盘三卡渲染（本周练习数字为琥珀色）、无练习记录提示；导航当前页高亮（访问 /scenarios 时“场景”激活）；`/scenarios`：4 张卡片；自定义表单每个字段有 label 与 * 必填标记；输入“和外国客户谈判交期”→ 生成草稿 → 编辑 → 保存并开始 → 跳转 `/practice/{id}`（Task 13 前显示 404 属预期）。
+浏览器 `http://localhost:3000`：仪表盘三卡渲染（本周练习数字为琥珀色）、无练习记录提示；导航当前页高亮（访问 /scenarios 时“场景”激活）且导航链接命中区 ≥44px；`/scenarios`：4 张卡片；自定义表单每个字段有 label 与 * 必填标记；输入“和外国客户谈判交期”→ 生成草稿 → **编辑 goals 为多行** → 保存并开始 → 跳转 `/practice/{id}`（Task 13 前显示 404 属预期），保存后 goals 条数与编辑一致（无逗号粘连）。
+错误处理走查（UI 不变量）：DevTools 断网后刷新仪表盘 → 不停留“加载中”；场景页点“生成草稿”/卡片“开始练习” → 显示错误提示且按钮恢复可用（无永久禁用、无 undefined 跳转）。
 
 - [ ] **Step 5: Commit**
 
@@ -2358,7 +2420,9 @@ import Recorder from "@/components/Recorder"
 import { Scenario, Session, Turn } from "@/lib/domain/types"
 
 type Bubble = { role: "user" | "ai" | "coach"; text: string }
-type Step = { name: "stt" | "chat"; retry: () => void }
+type Step = { name: "stt" | "chat" | "save"; retry: () => void }
+
+const stepLabel: Record<Step["name"], string> = { stt: "语音识别", chat: "对话", save: "轮次保存" }
 
 export default function PracticePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -2422,13 +2486,33 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       sttProvider: pending.current?.turnId ? "mock" : "keyboard",
       createdAt: new Date().toISOString(),
     }
-    await fetch(`/api/sessions/${session!.id}/turns`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ turn, goalsDone }),
-    })
+    const ok = await persistTurn(turn, goalsDone)
+    if (!ok) return
     pending.current = null
     setBusy(false)
     playTts(reply)
+  }
+
+  async function persistTurn(turn: Turn, goalsDone: number[]): Promise<boolean> {
+    const r = await fetch(`/api/sessions/${session!.id}/turns`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ turn, goalsDone }),
+    })
+    if (!r.ok) {
+      setBusy(false)
+      setFailed({
+        name: "save",
+        retry: async () => {
+          if (await persistTurn(turn, goalsDone)) {
+            pending.current = null
+            setBusy(false)
+            playTts(turn.aiText)
+          }
+        },
+      })
+      return false
+    }
+    return true
   }
 
   async function playTts(text: string) {
@@ -2437,7 +2521,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, speaker: scenario?.voice }),
       }).then(r => { if (!r.ok) throw new Error(); return r.arrayBuffer() })
-      new Audio(URL.createObjectURL(new Blob([wav], { type: "audio/wav" }))).play()
+      const audio = new Audio(URL.createObjectURL(new Blob([wav], { type: "audio/wav" })))
+      await audio.play()
       setTtsDown(false)
     } catch {
       setTtsDown(true)
@@ -2446,11 +2531,23 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   async function endPractice() {
     setBusy(true)
-    await fetch("/api/report", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: session!.id }),
-    })
-    router.push(`/report/${session!.id}`)
+    try {
+      const r = await fetch("/api/report", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: session!.id }),
+      })
+      if (r.status === 422) {
+        const { raw } = await r.json()
+        sessionStorage.setItem(`report-raw-${session!.id}`, raw ?? "")
+      } else if (!r.ok) {
+        setBusy(false)
+        setFailed({ name: "chat", retry: endPractice })
+        return
+      }
+      router.push(`/report/${session!.id}`)
+    } finally {
+      setBusy(false)
+    }
   }
 
   if (!session || !scenario) return <p className="muted">加载中…</p>
@@ -2481,7 +2578,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         {busy && <p className="muted">思考中…</p>}
         {failed && (
           <div className="card">
-            <span className="muted">{failed.name === "stt" ? "语音识别" : "对话"}失败</span>{" "}
+            <span className="muted">{stepLabel[failed.name]}失败</span>{" "}
             <button className="btn btn-secondary" onClick={failed.retry}>重试</button>
           </div>
         )}
@@ -2556,24 +2653,64 @@ const typeLabel: Record<string, string> = { grammar: "语法", vocab: "用词", 
 export default function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const [session, setSession] = useState<Session | null>(null)
   const [handled, setHandled] = useState<Record<string, string>>({})
+  const [rawReport, setRawReport] = useState<string | null>(null)
+  const [regenerating, setRegenerating] = useState(false)
 
   useEffect(() => {
     (async () => {
       const { id } = await params
       const s: Session = await fetch(`/api/sessions/${id}`).then(r => r.json())
       setSession(s)
+      if (!s?.report) {
+        setRawReport(sessionStorage.getItem(`report-raw-${id}`))
+      }
     })()
   }, [params])
 
+  async function regenerate() {
+    setRegenerating(true)
+    try {
+      const r = await fetch("/api/report", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: session!.id }),
+      })
+      if (r.ok) {
+        sessionStorage.removeItem(`report-raw-${session!.id}`)
+        const refreshed: Session = await fetch(`/api/sessions/${session!.id}`).then(x => x.json())
+        setSession(refreshed)
+        setRawReport(null)
+      }
+    } finally {
+      setRegenerating(false)
+    }
+  }
+
   if (!session) return <p className="muted">加载中…</p>
   const report: Report | undefined = session.report
-  if (!report) return <p className="muted">报告尚未生成。<Link href="/">返回首页</Link></p>
+  if (!report) {
+    return (
+      <div>
+        <h3>练习报告</h3>
+        {rawReport ? (
+          <div className="card">
+            <b>报告生成失败（解析错误）</b>
+            <p className="muted">以下是模型原始输出，可重试生成：</p>
+            <pre style={{ whiteSpace: "pre-wrap", background: "var(--color-muted)", padding: 12, borderRadius: 8 }}>{rawReport}</pre>
+            <button className="btn" disabled={regenerating} onClick={regenerate}>重新生成</button>
+          </div>
+        ) : (
+          <p className="muted">报告尚未生成。<Link href="/">返回首页</Link></p>
+        )}
+      </div>
+    )
+  }
 
   async function handleCandidate(word: string, translation: string, example: string, status: "new" | "ignored") {
-    await fetch("/api/vocab", {
+    const r = await fetch("/api/vocab", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ word, translation, example, sourceSessionId: session!.id, status }),
     })
+    if (!r.ok) return
     setHandled(h => ({ ...h, [word]: status }))
   }
 
@@ -2714,7 +2851,7 @@ git commit -m "feat: report page with audio replay and vocab management"
 - [ ] **Step 1: scripts/doctor.mjs**
 
 ```js
-import { access, writeFile, unlink, mkdir } from "node:fs/promises"
+import { writeFile, unlink, mkdir } from "node:fs/promises"
 import path from "node:path"
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"

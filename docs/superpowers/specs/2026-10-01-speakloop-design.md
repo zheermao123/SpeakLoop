@@ -1,6 +1,6 @@
 # SpeakLoop 设计文档
 
-- 日期：2026-10-01（v1.2，经两轮外部评审修订）
+- 日期：2026-10-01（v1.3，经两轮外部评审 + 实现方联合复核修订；勘误记录见 `docs/superpowers/plans/2026-10-01-speakloop-mvp1-erratum.md`）
 - 状态：已确认
 - 仓库：E:\EnglishDemo（全新仓库，本设计为首个交付物）
 
@@ -206,11 +206,12 @@ interface VocabWord {
 
 1. 用户点击录音 → MediaRecorder 采集（webm/opus）；**键盘输入作为并行入口**（开发调试 + STT 故障降级双用途，`sttProvider='keyboard'`）
 2. 停止 → `POST /api/stt`（multipart：sessionId + 音频）→ practice-service 转发 ai-server、音频落盘、生成 turnId → 返回 `{turnId, text, audioUrl, duration}` 上屏可核对
-3. `POST /api/chat {sessionId, scenarioId, messages}` → chat-service 从 store 读取待注入生词、构建 prompt → AI 回复文本**立即显示**
-4. `POST /api/tts {text, speaker: scenario.voice ?? 'Aiden'}` → wav 返回后自动播放（异步，不阻塞文字显示）
-5. AI 回复末尾解析 `[GOAL_DONE:n]`：命中则更新 `goalProgress` 并驱动进度条，标记本身从显示文本剥离；**容错：缺失/格式错误静默忽略，不影响对话**
-6. 每轮完成后 turn 数据追加落盘（`POST /api/sessions/{id}/turns`）
-7. 任一步失败：该步内联显示重试按钮，已完成轮次不丢失
+3. `POST /api/chat {sessionId, scenarioId, messages}` → chat-service 从 store 读取待注入生词、构建 prompt → AI 回复文本**立即显示**，并解析 `[GOAL_DONE:n]`：命中则更新 `goalProgress` 并驱动进度条，标记本身从显示文本剥离；**容错：缺失/格式错误静默忽略，不影响对话**
+4. **轮次落盘 `POST /api/sessions/{id}/turns`——可失败步骤**：失败→内联重试（标签"轮次保存"），**不播 TTS、不进入下一轮**；重试成功后补播 TTS
+5. `POST /api/tts {text, speaker: scenario.voice ?? 'Aiden'}` → wav 返回后 `await play()` 播放（异步，不阻塞文字显示）；播放成功才清除离线标识，**播放被浏览器策略拒绝视同语音离线**
+6. 任一步失败：该步内联显示重试按钮，已完成轮次不丢失
+
+> 管道顺序（v1.3 勘误修正）：**stt → chat → save → tts**——轮次落盘先于语音播放，杜绝"气泡已显示但数据未落库"。
 
 ### 6.2 辅助按钮
 
@@ -222,7 +223,7 @@ interface VocabWord {
 1. 读 session，抽取全部用户轮次（turnId + 原句）
 2. 构建约束 prompt：只分析给定轮次，每条 correction 必须携带 turnId 且 original 必须原样引用该轮原句（防幻觉）
 3. ChatProvider 生成 JSON → zod 校验（剥离 markdown 围栏、缺失字段兜底）
-4. **确定性回填校验**：corrections 的 original 与 turnId 对应 userText 归一化比对，不匹配→丢弃该条并记日志
+4. **确定性回填校验**：corrections 的 original 与 turnId 对应 userText 归一化比对，不匹配→丢弃该条并记日志；**归一化后为空的轮次（如中文/纯标点输入）不参与任何匹配分支，视为无候选**
 5. 词形归一化比对本次转写（用户+AI）与 active 生词 → `timesEncountered+1`、`lastUsedAt` 更新
 6. 持久化 report → 报告页呈现：总评、亮点 highlights、逐句纠错（**原声回放按钮** + 改进表达对照）、生词候选（采纳/忽略）
 
@@ -311,6 +312,7 @@ MVP 对策（均已纳入）：文字先显 + TTS 异步播放（感知延迟≈
 | 报告 JSON 解析失败 | zod 容错（剥围栏/兜底）→ 仍失败展示原始文本 + 重试 |
 | 报告幻觉 | turnId 回填校验丢弃不实条目 |
 | 无任何云端 Key | 全 Mock：模拟 STT 文本、模板 Chat 回复、提示音 TTS，全流程零成本可演示 |
+| 页面数据加载/动作请求失败 | 显式错误提示；加载态必须终结；busy 必须 try/finally 复位；路由跳转前校验目标 id，禁止 undefined 路由（v1.3 增补） |
 | 环境异常 | `npm run doctor`：Node 版本、data/ 可写、asr/tts 双服务 /health、GPU 显存（nvidia-smi） |
 
 ## 10. 测试策略（Vitest，全部基于 Mock，不依赖 Key 与 GPU）
