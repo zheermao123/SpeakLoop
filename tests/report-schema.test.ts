@@ -32,3 +32,17 @@ it("非法输入返回 null", () => {
   expect(tolerantParse("not json at all")).toBeNull()
   expect(tolerantParse("")).toBeNull()
 })
+
+it("围栏外散文含花括号时仍能提取 JSON", () => {
+  const prose = `Sure — use {placeholder} syntax: {"summary":"s"} done.`
+  expect(tolerantParse(prose)?.summary).toBe("s")
+})
+
+it("字符串值内的花括号不干扰平衡扫描", () => {
+  const prose = `Note {a}: {"summary":"use {braces} inside","highlights":[]}`
+  expect(tolerantParse(prose)?.summary).toBe("use {braces} inside")
+})
+
+it("含花括号但无合法 JSON 时返回 null", () => {
+  expect(tolerantParse("no json {just braces} here")).toBeNull()
+})

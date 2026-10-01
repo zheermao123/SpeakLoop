@@ -959,6 +959,20 @@ it("非法输入返回 null", () => {
   expect(tolerantParse("not json at all")).toBeNull()
   expect(tolerantParse("")).toBeNull()
 })
+
+it("围栏外散文含花括号时仍能提取 JSON", () => {
+  const prose = `Sure — use {placeholder} syntax: {"summary":"s"} done.`
+  expect(tolerantParse(prose)?.summary).toBe("s")
+})
+
+it("字符串值内的花括号不干扰平衡扫描", () => {
+  const prose = `Note {a}: {"summary":"use {braces} inside","highlights":[]}`
+  expect(tolerantParse(prose)?.summary).toBe("use {braces} inside")
+})
+
+it("含花括号但无合法 JSON 时返回 null", () => {
+  expect(tolerantParse("no json {just braces} here")).toBeNull()
+})
 ```
 
 - [ ] **Step 2: 运行确认失败**
@@ -992,25 +1006,52 @@ export const reportSchema = z.object({
 
 export type RawReport = z.infer<typeof reportSchema>
 
+function balancedJsonCandidates(t: string): string[] {
+  const out: string[] = []
+  const stack: number[] = []
+  let inStr = false
+  let esc = false
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i]
+    if (esc) { esc = false; continue }
+    if (c === "\\") { esc = true; continue }
+    if (c === '"') { inStr = !inStr; continue }
+    if (inStr) continue
+    if (c === "{") stack.push(i)
+    else if (c === "}" && stack.length) {
+      const s = stack.pop()!
+      if (stack.length === 0) out.push(t.slice(s, i + 1))
+    }
+  }
+  return out
+}
+
 export function tolerantParse(text: string): RawReport | null {
   let t = text.trim()
   const fenced = t.match(/```(?:json)?\s*([\s\S]*?)```/)
   if (fenced) t = fenced[1].trim()
+  const candidates: string[] = []
   const start = t.indexOf("{")
   const end = t.lastIndexOf("}")
-  if (start === -1 || end <= start) return null
-  try {
-    return reportSchema.parse(JSON.parse(t.slice(start, end + 1)))
-  } catch {
-    return null
+  if (start !== -1 && end > start) candidates.push(t.slice(start, end + 1))
+  candidates.push(...balancedJsonCandidates(t))
+  for (const c of candidates) {
+    try {
+      return reportSchema.parse(JSON.parse(c))
+    } catch {
+      continue
+    }
   }
+  return null
 }
 ```
+
+（提取策略说明：候选依次为「首 `{` 至末 `}` 整段」与「字符串感知的平衡花括号扫描产生的顶层对象序列」，逐个尝试 parse，首个成功者胜——覆盖围栏外散文含花括号的场景；全败返回 null，保持 fail-safe。）
 
 - [ ] **Step 4: 运行确认通过**
 
 Run: `npx vitest run tests/report-schema.test.ts`
-Expected: 5 passed
+Expected: 8 passed
 
 - [ ] **Step 5: Commit**
 
