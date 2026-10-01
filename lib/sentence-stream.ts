@@ -30,6 +30,10 @@ export class SentenceStream {
   }
 
   private drain(final: boolean): void {
+    if (final) {
+      const p = trailingMarkerPrefix(this.buf)
+      if (p) this.buf = this.buf.slice(0, this.buf.length - p)
+    }
     const hold = final ? 0 : trailingMarkerPrefix(this.buf)
     const avail = hold ? this.buf.slice(0, this.buf.length - hold) : this.buf
     const m = /[.!?]+(?=\s|\n|$)/.exec(avail)

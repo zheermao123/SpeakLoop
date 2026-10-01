@@ -38,3 +38,10 @@ it("openai-compatible 分流", async () => {
   const { getChat } = await freshTypes()
   expect((await getChat()).constructor.name).toBe("OpenAICompatibleChatProvider")
 })
+
+it("openai-compatible 缺 env 时 fail-fast（勘误 R3）", async () => {
+  process.env.CHAT_PROVIDER = "openai-compatible"
+  process.env.CHAT_API_KEY = "sk-x"
+  const { getChat } = await freshTypes()
+  await expect(getChat()).rejects.toThrow("CHAT_BASE_URL")
+})

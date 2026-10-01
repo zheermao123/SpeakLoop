@@ -77,7 +77,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     const form = new FormData()
     form.set("sessionId", session!.id)
     form.set("audio", blob, "turn.webm")
-    const r = await fetch("/api/stt", { method: "POST", body: form })
+    let r: Response
+    try {
+      r = await fetch("/api/stt", { method: "POST", body: form })
+    } catch {
+      setBusy(false); setFailed({ name: "stt", retry: () => runStt(blob) }); return
+    }
     if (!r.ok) { setBusy(false); setFailed({ name: "stt", retry: () => runStt(blob) }); return }
     const data = await r.json()
     pending.current = { turnId: data.turnId, audioUrl: data.audioUrl, userText: data.text, sttProvider: data.sttProvider }
@@ -112,7 +117,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     const goalsDone: number[] = []
     let errored = false
     for (;;) {
-      const { done, value } = await reader.read()
+      const { done, value } = await reader.read().catch(() => ({ done: true, value: undefined }))
       if (done) break
       buf += dec.decode(value, { stream: true })
       const frames = buf.split("\n\n")
@@ -166,11 +171,16 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     const messages = bubbles
       .filter(b => b.role !== "coach")
       .map(b => ({ role: b.role === "user" ? "user" as const : "assistant" as const, content: b.text }))
-    const r = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: session!.id, scenarioId: session!.scenarioId, messages, mode }),
-    })
+    let r: Response
+    try {
+      r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: session!.id, scenarioId: session!.scenarioId, messages, mode }),
+      })
+    } catch {
+      setBusy(false); setFailed({ name: "chat", retry: () => runChat(mode) }); return
+    }
     if (!r.ok) { setBusy(false); setFailed({ name: "chat", retry: () => runChat(mode) }); return }
     const { reply } = await r.json()
     setBubbles(b => [...b, { role: "coach", text: reply }])
@@ -178,11 +188,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   }
 
   async function persistTurn(turn: Turn, goalsDone: number[]): Promise<boolean> {
-    const r = await fetch(`/api/sessions/${session!.id}/turns`, {
+    const ok = await fetch(`/api/sessions/${session!.id}/turns`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ turn, goalsDone }),
-    })
-    if (!r.ok) {
+    }).then(r => r.ok, () => false)
+    if (!ok) {
       setBusy(false)
       setFailed({
         name: "save",
@@ -215,6 +225,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         return
       }
       router.push(`/report/${session!.id}`)
+    } catch {
+      setBusy(false)
+      setFailed({ name: "chat", retry: endPractice })
     } finally {
       setBusy(false)
     }

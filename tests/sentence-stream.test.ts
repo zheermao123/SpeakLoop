@@ -57,3 +57,20 @@ it("工具函数：完整标记剥离与部分前缀检测", () => {
   expect(trailingMarkerPrefix("x [GOAL_DONE:123")).toBe(14)
   expect(trailingMarkerPrefix("clean.")).toBe(0)
 })
+
+it("flush 剥离截断的标记残段（词干截断，勘误 R5）", () => {
+  const out: string[] = []
+  const ss = new SentenceStream(s => out.push(s))
+  ss.push("Great job [GOAL_DON")
+  ss.flush()
+  expect(out).toEqual(["Great job"])
+})
+
+it("flush 剥离截断的标记残段（数字截断，勘误 R5）", () => {
+  const out: string[] = []
+  const ss = new SentenceStream(s => out.push(s))
+  ss.push("Done here [GOAL_DONE:1")
+  ss.flush()
+  expect(out).toEqual(["Done here"])
+  expect(ss.goals).toEqual([])
+})

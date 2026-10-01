@@ -34,8 +34,9 @@ export async function POST(req: NextRequest) {
           }
         })
         ss.flush()
-        const reply = full
-          .replace(/\[GOAL_DONE:\d+\]/g, "")
+        const stripped = full.replace(/\[GOAL_DONE:\d+\]/g, "")
+        const tail = trailingMarkerPrefix(stripped)
+        const reply = (tail ? stripped.slice(0, stripped.length - tail) : stripped)
           .replace(/ {2,}/g, " ")
           .trim()
         send({ type: "done", goalsDone: ss.goals, reply })

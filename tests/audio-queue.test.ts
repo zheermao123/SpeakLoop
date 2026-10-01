@@ -22,7 +22,9 @@ it("顺序播放且互不重叠", async () => {
 
 it("获取失败跳过不断链", async () => {
   const played: number[] = []
-  const q = new AudioQueue(async buf => played.push(new Uint8Array(buf)[0]))
+  const q = new AudioQueue(async buf => {
+    played.push(new Uint8Array(buf)[0])
+  })
   q.enqueue(async () => {
     throw new Error("net")
   })

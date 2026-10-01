@@ -35,12 +35,16 @@ export async function getSTT(): Promise<STTProvider> {
 
 export async function getChat(): Promise<ChatProvider> {
   if ((process.env.CHAT_PROVIDER ?? "mock") === "openai-compatible") {
+    const baseUrl = process.env.CHAT_BASE_URL
+    const apiKey = process.env.CHAT_API_KEY
+    const model = process.env.CHAT_MODEL
+    if (!baseUrl || !apiKey || !model) {
+      throw new Error(
+        "CHAT_PROVIDER=openai-compatible 需要 CHAT_BASE_URL / CHAT_API_KEY / CHAT_MODEL 全部配置"
+      )
+    }
     const { OpenAICompatibleChatProvider } = await import("@/lib/providers/chat/openai-compatible")
-    return new OpenAICompatibleChatProvider({
-      baseUrl: process.env.CHAT_BASE_URL ?? "",
-      apiKey: process.env.CHAT_API_KEY ?? "",
-      model: process.env.CHAT_MODEL ?? "",
-    })
+    return new OpenAICompatibleChatProvider({ baseUrl, apiKey, model })
   }
   const { MockChatProvider } = await import("@/lib/providers/chat/mock")
   return new MockChatProvider()
