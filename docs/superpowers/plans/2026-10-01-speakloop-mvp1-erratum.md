@@ -25,7 +25,7 @@
 | E7* | `.env.example` 落盘文件含无人读取的 AI_SERVER_URL，缺 doctor 实读的 STT/TTS_BASE_URL | Task 1 执行产物 | 计划文本 5afee71 已对；**文件修正归执行侧**（一行改两行） | §7.3 |
 | E8 | nav 链接无 44px 命中区（违反 spec §8.1 自定规则） | Task 1 CSS | `.nav a` 增 min-height/display:inline-flex/align-items | §8.1 |
 | E9 | doctor.mjs `access` 死导入 | Task 15 | 移除该导入 | — |
-| E10 | goals 断言盲区（**待执行方指认具体测试/断言位置后补录**） | 待定 | 待定 | — |
+| E10 | goals 断言盲区（复核已指认：`tests/practice-service.test.ts:17-24`，断言 `:24`） | Task 9 测试 | **已闭环（`e7cf402`）**：第 3 次 `appendTurn(…, [])` 区分并集 vs 覆盖语义——覆盖实现会使 `goalProgress` 变 `[]` 而断言失败 | — |
 
 \* E7 为执行侧待办，非计划文本修订。
 
@@ -57,5 +57,5 @@
 
 1. 按 E1-E6、E8、E9 对齐代码（计划正文已含精确规格与验收点；预计每项分钟级）
 2. E7：`.env.example` 改为 `STT_BASE_URL` / `TTS_BASE_URL` 两行
-3. E10：指认具体断言位置 → 设计方补录勘误
-4. 全量 `npm test`（预期 48 passed：+1 report-service、+1 vocab-service）+ `npm run build` 通过
+3. ~~E10：指认具体断言位置~~ **已闭环**（复核确认 `e7cf402`，见 §二）
+4. 全量 `npm test`（预期 **47 passed** = 基线 45 + E1/E4 各 1）+ `npm run build` 通过
