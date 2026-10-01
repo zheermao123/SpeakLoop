@@ -75,6 +75,12 @@ if ROLE == "tts":
         except Exception as e:  # noqa: BLE001
             raise HTTPException(status_code=500, detail=str(e)) from e
 
+    @app.post("/warmup")
+    def tts_warmup():
+        t0 = time.time()
+        get_tts().generate_custom_voice(text="Hi.", language="English", speaker="Aiden")
+        return {"ok": True, "elapsed": round(time.time() - t0, 2)}
+
 
 if ROLE == "asr":
     import av
@@ -105,3 +111,10 @@ if ROLE == "asr":
             return {"text": results[0].text, "elapsed": round(elapsed, 2)}
         except Exception as e:  # noqa: BLE001
             raise HTTPException(status_code=500, detail=str(e)) from e
+
+    @app.post("/warmup")
+    def asr_warmup():
+        t0 = time.time()
+        silence = np.zeros(16000, dtype=np.float32)
+        get_asr().transcribe(audio=(silence, 16000), language="English")
+        return {"ok": True, "elapsed": round(time.time() - t0, 2)}
