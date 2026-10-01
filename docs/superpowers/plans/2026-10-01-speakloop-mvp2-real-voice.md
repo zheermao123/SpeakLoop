@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - 遵守 `AGENTS.md`：`docs/**` 受控只读；验证命令 `npm test`（Vitest）、`npm run build`、`npm run doctor`
-- **基线不破坏**：每任务结束时全量测试绿；测试计数推进 47→49→55→58→62→65→68→71→73
+- **基线不破坏**：每任务结束时全量测试绿；测试计数推进 47→49→57→60→64→68→71→74→76（勘误 R3/R5 增 3 测）；验证链含 `npm run typecheck`（勘误 R4）
 - 端口/环境：asr `:8100`、tts `:8101`；env 矩阵见 Task 9（`.env.example`）
 - UI 不变量（spec §9）：所有 fetch 检查 `r.ok`；busy 必须 try/finally 复位；加载必有终结态；禁止 undefined 路由
 - 标记纪律：`[GOAL_DONE:n]` 永不出现在前端文本——服务端 delta 消毒（完整标记剥离 + 部分前缀回持）与句子级剥离双保险
@@ -187,6 +187,23 @@ it("工具函数：完整标记剥离与部分前缀检测", () => {
   expect(trailingMarkerPrefix("x [GOAL_DONE:12")).toBe(14)
   expect(trailingMarkerPrefix("clean.")).toBe(0)
 })
+
+it("flush 剥离截断的标记残段（词干截断，勘误 R5）", () => {
+  const out: string[] = []
+  const ss = new SentenceStream(s => out.push(s))
+  ss.push("Great job [GOAL_DON")
+  ss.flush()
+  expect(out).toEqual(["Great job"])
+})
+
+it("flush 剥离截断的标记残段（数字截断，勘误 R5）", () => {
+  const out: string[] = []
+  const ss = new SentenceStream(s => out.push(s))
+  ss.push("Done here [GOAL_DONE:1")
+  ss.flush()
+  expect(out).toEqual(["Done here"])
+  expect(ss.goals).toEqual([])
+})
 ```
 
 - [ ] **Step 2: 运行确认失败**
@@ -229,6 +246,10 @@ export class SentenceStream {
   }
 
   private drain(final: boolean): void {
+    if (final) {
+      const p = trailingMarkerPrefix(this.buf)
+      if (p) this.buf = this.buf.slice(0, this.buf.length - p)
+    }
     const hold = final ? 0 : trailingMarkerPrefix(this.buf)
     const avail = hold ? this.buf.slice(0, this.buf.length - hold) : this.buf
     const m = /[.!?]+(?=\s|\n|$)/.exec(avail)
@@ -252,7 +273,7 @@ export class SentenceStream {
 - [ ] **Step 4: 运行确认通过**
 
 Run: `npx vitest run tests/sentence-stream.test.ts`
-Expected: 6 passed
+Expected: 8 passed
 
 - [ ] **Step 5: Commit**
 
@@ -629,6 +650,13 @@ it("openai-compatible 分流", async () => {
   const { getChat } = await freshTypes()
   expect((await getChat()).constructor.name).toBe("OpenAICompatibleChatProvider")
 })
+
+it("openai-compatible 缺 env 时 fail-fast（勘误 R3）", async () => {
+  process.env.CHAT_PROVIDER = "openai-compatible"
+  process.env.CHAT_API_KEY = "sk-x"
+  const { getChat } = await freshTypes()
+  await expect(getChat()).rejects.toThrow("CHAT_BASE_URL")
+})
 ```
 
 - [ ] **Step 2: 运行确认失败**
@@ -661,12 +689,16 @@ export async function getSTT(): Promise<STTProvider> {
 
 export async function getChat(): Promise<ChatProvider> {
   if ((process.env.CHAT_PROVIDER ?? "mock") === "openai-compatible") {
+    const baseUrl = process.env.CHAT_BASE_URL
+    const apiKey = process.env.CHAT_API_KEY
+    const model = process.env.CHAT_MODEL
+    if (!baseUrl || !apiKey || !model) {
+      throw new Error(
+        "CHAT_PROVIDER=openai-compatible 需要 CHAT_BASE_URL / CHAT_API_KEY / CHAT_MODEL 全部配置"
+      )
+    }
     const { OpenAICompatibleChatProvider } = await import("@/lib/providers/chat/openai-compatible")
-    return new OpenAICompatibleChatProvider({
-      baseUrl: process.env.CHAT_BASE_URL ?? "",
-      apiKey: process.env.CHAT_API_KEY ?? "",
-      model: process.env.CHAT_MODEL ?? "",
-    })
+    return new OpenAICompatibleChatProvider({ baseUrl, apiKey, model })
   }
   const { MockChatProvider } = await import("@/lib/providers/chat/mock")
   return new MockChatProvider()
@@ -696,7 +728,7 @@ export async function getTTS(): Promise<TTSProvider> {
 - [ ] **Step 5: 全量回归**
 
 Run: `npm test`
-Expected: 65 passed（47 基线 + T1×2 + T2×6 + T3×3 + T4×4 + 本任务 3）
+Expected: 68 passed（47 基线 + T1×2 + T2×8 + T3×3 + T4×4 + 本任务 4）
 
 - [ ] **Step 6: Commit**
 
@@ -832,8 +864,9 @@ export async function POST(req: NextRequest) {
           }
         })
         ss.flush()
-        const reply = full
-          .replace(/\[GOAL_DONE:\d+\]/g, "")
+        const stripped = full.replace(/\[GOAL_DONE:\d+\]/g, "")
+        const tail = trailingMarkerPrefix(stripped)
+        const reply = (tail ? stripped.slice(0, stripped.length - tail) : stripped)
           .replace(/ {2,}/g, " ")
           .trim()
         send({ type: "done", goalsDone: ss.goals, reply })
@@ -902,7 +935,9 @@ it("顺序播放且互不重叠", async () => {
 
 it("获取失败跳过不断链", async () => {
   const played: number[] = []
-  const q = new AudioQueue(async buf => played.push(new Uint8Array(buf)[0]))
+  const q = new AudioQueue(async buf => {
+    played.push(new Uint8Array(buf)[0])
+  })
   q.enqueue(async () => {
     throw new Error("net")
   })
@@ -1104,9 +1139,65 @@ Expected: 3 passed
 7. 键盘 onKeyDown 内 `await runChat(t)` 改为 `await runChatStream(t)`
 8. 两个教练按钮改为 `onClick={() => runChat("simplify")}` / `onClick={() => runChat("hint")}`
 
+- [ ] **Step 5b: 健壮性修订（勘误 R1/R2——在 Step 5 完成后的页面上实施）**
+
+R1——`runChatStream` 读取循环中 `const { done, value } = await reader.read()` 一行替换为：
+
+```tsx
+      const { done, value } = await reader.read().catch(() => ({ done: true, value: undefined }))
+```
+
+断流视为流结束：未收 done 事件时 `reply` 为空 → 落入既有 `!reply` 失败路径（撤临时气泡/busy 复位/重试）；已收 done 则正常收尾。
+
+R2a——`runStt` 的 fetch 段替换为（原 `const r = await fetch(...)` 与 `if (!r.ok)` 合并处理传输层拒绝）：
+
+```tsx
+    let r: Response
+    try {
+      r = await fetch("/api/stt", { method: "POST", body: form })
+    } catch {
+      setBusy(false); setFailed({ name: "stt", retry: () => runStt(blob) }); return
+    }
+```
+
+（其后 `if (!r.ok)` 分支保留。）
+
+R2b——`runChat(mode)` 的 fetch 段同构：
+
+```tsx
+    let r: Response
+    try {
+      r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: session!.id, scenarioId: session!.scenarioId, messages, mode }),
+      })
+    } catch {
+      setBusy(false); setFailed({ name: "chat", retry: () => runChat(mode) }); return
+    }
+```
+
+R2c——`persistTurn` 的请求与判定两行替换为单出口形式（失败分支体不变）：
+
+```tsx
+    const ok = await fetch(`/api/sessions/${session!.id}/turns`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ turn, goalsDone }),
+    }).then(r => r.ok, () => false)
+    if (!ok) {
+```
+
+R2d——`endPractice` 的 `} finally {` 前插入：
+
+```tsx
+    } catch {
+      setBusy(false)
+      setFailed({ name: "chat", retry: endPractice })
+```
+
 - [ ] **Step 6: 验证**
 
-Run: `npm test`（Expected: 71 passed）→ `npm run build` → `npm run dev` 手动走查：键盘输入两轮（第二轮 goals 打勾、气泡无标记字样）、“听不懂/提示”黄色教练气泡、结束练习报告正常。
+Run: `npm test`（Expected: 74 passed）→ `npm run build` → `npm run dev` 手动走查：键盘输入两轮（第二轮 goals 打勾、气泡无标记字样）、“听不懂/提示”黄色教练气泡、结束练习报告正常。
 
 - [ ] **Step 7: Commit**
 
@@ -1277,12 +1368,21 @@ git commit -m "docs: mvp2 env matrix and real voice setup"
 
 - [ ] **Step 1: 自动化全量**
 
+先在 package.json 的 scripts 中增加（勘误 R4 门禁）：
+
+```json
+    "typecheck": "tsc --noEmit",
+```
+
+然后：
+
 ```powershell
 npm test
+npm run typecheck
 npm run build
 ```
 
-Expected: **73 passed**（47 基线 + 26 新增：T1×2 T2×6 T3×3 T4×4 T5×3 T6×3 T7×3 T8×2）；build 成功。
+Expected: **76 passed**（47 基线 + 29 新增：T1×2 T2×8 T3×3 T4×4 T5×4 T6×3 T7×3 T8×2）；typecheck **0 error**；build 成功。
 
 - [ ] **Step 2: 真实语音联调（需 GPU，手动清单）**
 
