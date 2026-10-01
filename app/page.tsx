@@ -17,6 +17,7 @@ export default function Dashboard() {
       fetch("/api/vocab").then(r => r.json()).then(setWords).catch(() => {}),
     ]).then(() => setLoading(false))
     fetch("/api/tts/warmup", { method: "POST" }).catch(() => {})
+    fetch("/api/stt/warmup", { method: "POST" }).catch(() => {})
   }, [])
 
   const weekAgo = Date.now() - 7 * 86400_000
