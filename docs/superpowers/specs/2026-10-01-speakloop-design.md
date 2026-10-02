@@ -1,6 +1,6 @@
 # SpeakLoop 设计文档
 
-- 日期：2026-10-01（v1.3，经两轮外部评审 + 实现方联合复核修订；勘误记录见 `docs/superpowers/plans/2026-10-01-speakloop-mvp1-erratum.md`）
+- 日期：2026-10-01（v1.4：生产 Mock 移除——Mock 定性为测试脚手架，生产零 mock、假件下沉 tests/fixtures；历史沿革见各勘误记录 `docs/superpowers/plans/*erratum*.md`）
 - 状态：已确认
 - 仓库：E:\EnglishDemo（全新仓库，本设计为首个交付物）
 
@@ -21,7 +21,7 @@
 | STT | **本地 Qwen3-ASR-0.6B**（RTX 3070/8GB；env 可切 1.7B） | 带口音英语 WER 16.62(0.6B)/16.07(1.7B)，优于 Whisper-large-v3(21.3)、GPT-4o-Transcribe(28.6)——口音鲁棒性是本应用命门 |
 | TTS | **本地 Qwen3-TTS-12Hz-1.7B-CustomVoice** | 零调用成本、9 种预置音色（英语母语 Aiden/Ryan）+ 语气指令 |
 | STT/TTS 部署形态 | **双 conda 环境双服务**（speakloop-asr :8100 / speakloop-tts :8101） | qwen-asr(0.0.6) 钉 `transformers==4.57.6`、qwen-tts(0.1.1) 钉 `==4.57.3`，PyPI 元数据核实互斥，单环境无解；拆分后官方包零改动 |
-| Chat 服务商 | 未定，Provider 抽象 + Mock 先行 | 全链路唯一外部云端依赖 |
+| Chat 服务商 | OpenAI 兼容协议适配（DeepSeek/GLM/Kimi/Qwen 等，env 配置） | 全链路唯一外部云端依赖 |
 | 复盘形式 | 练后报告（纠错 + 亮点 + 生词候选 + 原声回放） | 不打断对话沉浸感 |
 | 生词闭环 | 自动提取 + 确认 → 结构化注入后续对话 | 真正形成"再用"闭环 |
 | 场景库 | 内置 4 个 + 自然语言自定义（预览可编辑） | 覆盖典型职场场景，保留灵活性 |
@@ -55,7 +55,7 @@
 │  │   → data/*.json + data/audio/{sessionId}/            │
 │  └─ lib/providers（供应商抽象）                          │
 │      STTProvider / ChatProvider / TTSProvider           │
-│      mock ×3 + qwen3-local(STT/TTS) → 云端 Chat 可后补  │
+│      qwen3-local(STT/TTS) / openai-compatible(Chat) 按 .env 配置  │
 └──────────────┬──────────────────────────────────────────┘
                │ HTTP（STT_BASE_URL / TTS_BASE_URL）
    ┌───────────▼──────────────────┐  ┌───────────────────────────┐
@@ -107,7 +107,7 @@ EnglishDemo/
 │   ├── store/json-store.ts       # update(key,fn) 写队列+原子写
 │   ├── providers/
 │   │   ├── types.ts              # 三大 Provider 接口
-│   │   ├── stt/mock.ts  chat/mock.ts  tts/mock.ts
+│   │   └── stt/qwen3-local.ts  tts/qwen3-local.ts  chat/openai-compatible.ts
 │   │   ├── stt/qwen3-local.ts
 │   │   └── tts/qwen3-local.ts
 │   ├── prompts.ts                # system prompt 构建+结构化生词注入
@@ -144,7 +144,7 @@ interface Turn {
   aiText: string
   audioUrl?: string                // data/audio/{sessionId}/{turnId}.webm（原声回放）
   duration?: number                // 用户语音时长（秒）
-  sttProvider: string              // 'qwen3-asr-local' | 'mock' | 'keyboard'(键盘输入)
+  sttProvider: string              // 'qwen3-asr-local' | 'keyboard'(键盘输入)
   confidence?: number              // 预留字段：qwen-asr 现不返回，恒 undefined
   createdAt: string
 }
@@ -282,8 +282,8 @@ MVP 对策（均已纳入）：文字先显 + TTS 异步播放（感知延迟≈
 
 ### 7.3 Next.js 侧与降级
 
-- `STT_BASE_URL`（默认 `http://127.0.0.1:8100`）与 `TTS_BASE_URL`（默认 `http://127.0.0.1:8101`）；`sttProvider/ttsProvider = 'mock' | 'qwen3-local'` 按 env 选择
-- 任一服务离线：STT→键盘输入降级提示；TTS→503 纯文字继续 + “语音服务离线”标识；Mock 模式返回模拟文本/本地提示音 wav
+- `STT_BASE_URL`（默认 `http://127.0.0.1:8100`）与 `TTS_BASE_URL`（默认 `http://127.0.0.1:8101`）；`sttProvider/ttsProvider` 由 `.env` 配置（v1.4：仅 `qwen3-local`，未配置即调用时报配置指引）
+- 任一服务离线：STT→键盘输入降级提示；TTS→503 纯文字继续 + “语音服务离线”标识
 
 ## 8. UI 页面
 
@@ -314,11 +314,11 @@ MVP 对策（均已纳入）：文字先显 + TTS 异步播放（感知延迟≈
 | 任一 ai 服务未启动 | STT→键盘降级；TTS→纯文字 + 离线标识 |
 | 报告 JSON 解析失败 | zod 容错（剥围栏/兜底）→ 仍失败展示原始文本 + 重试 |
 | 报告幻觉 | turnId 回填校验丢弃不实条目 |
-| 无任何云端 Key | 全 Mock：模拟 STT 文本、模板 Chat 回复、提示音 TTS，全流程零成本可演示 |
+| provider 未配置 | 调用即报配置指引错误（v1.4：Mock 兜底已移除，生产零 mock） |
 | 页面数据加载/动作请求失败 | 显式错误提示；加载态必须终结；busy 必须 try/finally 复位；路由跳转前校验目标 id，禁止 undefined 路由（v1.3 增补） |
 | 环境异常 | `npm run doctor`：Node 版本、data/ 可写、asr/tts 双服务 /health、GPU 显存（nvidia-smi） |
 
-## 10. 测试策略（Vitest，全部基于 Mock，不依赖 Key 与 GPU）
+## 10. 测试策略（Vitest，假件位于 tests/fixtures，生产零 mock；不依赖 Key 与 GPU）
 
 - `json-store`：写队列顺序性、原子写（无半文件）、并发 update
 - `vocab-service`：状态机迁移（new/learning/mastered/ignored）、注入选择（≤5、timesEncountered 升序、排除 mastered/ignored）
@@ -327,7 +327,7 @@ MVP 对策（均已纳入）：文字先显 + TTS 异步播放（感知延迟≈
 - `report-schema`：zod 正常/围栏包裹/字段缺失/非法输入
 - `report-service` 回填校验：turnId 不匹配的 correction 被丢弃
 - `prompts`：结构化注入模板（有/无生词）
-- E2E（Playwright，可选收尾）：Mock 模式走通 练习→报告→生词入库→再练习注入 完整闭环
+- E2E（Playwright，已落地）：`scripts/browser-check.mjs` 真实浏览器走查 练习→报告→生词入库→再练习注入 完整闭环（11 项断言， headed 可旁观）
 
 ## 11. MVP 明确不做（Non-Goals）
 

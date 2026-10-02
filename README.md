@@ -13,7 +13,7 @@
 - **练后纠错报告**：总评 + 亮点 + 逐句纠错（原声回放 vs 改进表达对照）+ 生词候选采纳
 - **生词闭环**：报告候选 → 入库 → 结构化注入后续对话（每次 ≤5 个、按使用次数轮换）→ 标记掌握
 - **辅助按钮**："听不懂"（换简单表达重说）/"提示"（给可用句式），新手不卡壳
-- **智能降级**：语音服务离线 → 文字模式不阻断；STT 失败 → 键盘输入兜底；无 GPU/Key → 全 Mock 演示
+- **智能降级**：语音服务离线 → 文字模式不阻断；STT 失败 → 键盘输入兜底
 
 ## 系统架构
 
@@ -21,47 +21,32 @@
 浏览器（React UI，MediaRecorder 录音 / 键盘输入）
    │ fetch /api/*
 Next.js 全栈（薄路由 → services 业务层 → json-store 存储）
-   │ Provider 抽象（mock / qwen3-local / openai-compatible 按 env 切换）
+   │ Provider 抽象（qwen3-local / openai-compatible 按 .env 配置）
    ├─ asr-server :8100（FastAPI + Qwen3-ASR-0.6B，本地 GPU）
    ├─ tts-server :8101（FastAPI + Qwen3-TTS-1.7B-CustomVoice，本地 GPU）
-   └─ Chat 云端（任意 OpenAI 兼容厂商，可 mock）
+   └─ Chat 云端（任意 OpenAI 兼容厂商，需 Key）
 ```
 
 ## 环境要求
 
-| 组件 | Mock 模式 | 真实语音模式 |
-|---|---|---|
-| Node.js | ≥ 20 | ≥ 20 |
-| GPU | 不需要 | NVIDIA 8GB+（实测 3070 占用 ~5.6GB） |
-| Python | 不需要 | conda 双环境（部署见计划文档） |
-| Chat Key | 不需要 | 任一 OpenAI 兼容厂商 Key（可选） |
+| 组件 | 要求 |
+|---|---|
+| Node.js | ≥ 20 |
+| GPU | NVIDIA 8GB+（实测 3070 占用 ~5.6GB，语音必需） |
+| Python | conda 双环境（语音必需，部署见计划文档） |
+| Chat Key | 任一 OpenAI 兼容厂商（对话必需） |
 
-## 快速开始（Mock 模式，无需 GPU/Key）
+## 快速开始
 
-```powershell
-npm install
-npm run dev
-```
+1. 部署 ai-server 双服务（首次下载权重 ~5GB，见 `docs/superpowers/plans/2026-10-01-speakloop-phase0-ai-server.md`）
+2. 配置 `.env`（STT/TTS/CHAT 三项 provider，见配置说明）
+3. 双击 `启动SpeakLoop.vbs`，或 `npm run doctor` 自检后 `npm run start`
 
-打开 http://localhost:3000 —— 全流程可跑：对话（Mock 语音）→ 报告 → 生词闭环。
+打开 http://localhost:3000 —— 完整流程：语音对话 → 目标进度 → 练后报告 → 生词闭环。
 
-## 一键启动（推荐，真实语音）
+## 一键启动（推荐）
 
 双击根目录 **`启动SpeakLoop.vbs`**：无窗口拉起 ai-server 双服务 + Next.js，就绪后自动打开浏览器（语音预热约 2-3 分钟）。**`停止SpeakLoop.vbs`** 一键停止。日志见 `logs/`。
-
-## 手动启动（分步）
-
-```powershell
-# 1. 部署 ai-server 双服务（首次需下载权重 ~5GB，详见 docs/superpowers/plans/2026-10-01-speakloop-phase0-ai-server.md）
-powershell -ExecutionPolicy Bypass -File scripts/start-ai.ps1   # asr :8100 / tts :8101，冷载约 2-3 分钟
-
-# 2. 配置 .env（见下方配置说明）
-
-# 3. 自检 + 启动
-npm run doctor
-npm run build
-npm run start
-```
 
 ## 配置说明
 
@@ -69,9 +54,9 @@ npm run start
 
 | 变量 | 取值 | 说明 |
 |---|---|---|
-| `STT_PROVIDER` | `mock` / `qwen3-local` | 语音识别 |
-| `TTS_PROVIDER` | `mock` / `qwen3-local` | 语音合成 |
-| `CHAT_PROVIDER` | `mock` / `openai-compatible` | 对话大模型 |
+| `STT_PROVIDER` | `qwen3-local` | 语音识别（本地） |
+| `TTS_PROVIDER` | `qwen3-local` | 语音合成（本地） |
+| `CHAT_PROVIDER` | `openai-compatible` | 对话大模型 |
 | `STT_BASE_URL` | `http://127.0.0.1:8100` | asr-server 地址 |
 | `TTS_BASE_URL` | `http://127.0.0.1:8101` | tts-server 地址 |
 | `CHAT_BASE_URL` | 如 `https://api.deepseek.com` | OpenAI 兼容地址 |
@@ -87,13 +72,13 @@ npm run start
 | Kimi | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` |
 | 通义 Qwen | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` |
 
-**Key 安全**：Key 仅存本地 `.env`（已 gitignore，不会入库）；对话经本地 ai-server/你的浏览器直达厂商，不经过任何第三方。
+**Key 安全**：Key 仅存本地 `.env`（gitignore 覆盖，不会入库）；对话请求从你的机器直达厂商，不经过任何第三方。
 
 ## 验证命令
 
 | 命令 | 用途 |
 |---|---|
-| `npm test` | 单元测试（76 个，全 Mock 不依赖 GPU/Key） |
+| `npm test` | 单元测试（77 个，假件位于 tests/fixtures，生产零 mock） |
 | `npm run typecheck` | 全量类型检查 |
 | `npm run build` | 生产构建 |
 | `npm run doctor` | 环境自检（Node/数据目录/双服务健康/GPU） |
@@ -111,9 +96,6 @@ npm run start
 **Q：API Key 会被上传或泄露吗？**
 不会。Key 只存在本地 `.env`（gitignore 覆盖），对话请求从你的机器直达厂商。
 
-**Q：没有 GPU 能用吗？**
-能。Mock 模式全流程可跑（文字对话 + 提示音），适合先体验产品闭环。
-
 **Q：8100/8101 端口被占用？**
 `logs/` 下查看报错，或在 `start-ai.ps1` 修改端口并同步 `.env` 的 `STT_BASE_URL`/`TTS_BASE_URL`。
 
@@ -129,6 +111,7 @@ npm run start
 | MVP-1 实施计划 | `docs/superpowers/plans/2026-10-01-speakloop-mvp1-text-loop.md` |
 | MVP-2 实施计划 | `docs/superpowers/plans/2026-10-01-speakloop-mvp2-real-voice.md` |
 | 勘误记录（MVP-1/MVP-2） | `docs/superpowers/plans/*erratum*.md` |
+| Mock 移除计划 | `docs/superpowers/plans/2026-10-01-speakloop-mock-removal.md` |
 
 ## License
 
