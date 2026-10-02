@@ -53,15 +53,15 @@ it("存储层覆盖 env：工厂读取设置页配置", async () => {
   writeFileSync(path.join(process.env.DATA_DIR!, "config.json"), JSON.stringify({ stt: { baseUrl: "http://127.0.0.1:8100" } }))
   const { getSTT } = await freshTypes()
   const stt = await getSTT()
-  expect(stt.constructor.name).toBe("Qwen3LocalStt")
+  expect((stt as unknown as { baseUrl: string }).baseUrl).toBe("http://127.0.0.1:8100")
 })
 
-it("未知 provider 抛出配置指引（Mock 兜底已移除）", async () => {
+it("未知 provider 抛出配置指引", async () => {
   process.env.STT_PROVIDER = "foo"
   process.env.CHAT_PROVIDER = "bar"
   process.env.TTS_PROVIDER = "baz"
   const { getSTT, getChat, getTTS } = await freshTypes()
-  await expect(getSTT()).rejects.toThrow("STT_PROVIDER")
-  await expect(getChat()).rejects.toThrow("CHAT_PROVIDER")
-  await expect(getTTS()).rejects.toThrow("TTS_PROVIDER")
+  await expect(getSTT()).rejects.toThrow("qwen3-local")
+  await expect(getChat()).rejects.toThrow("openai-compatible")
+  await expect(getTTS()).rejects.toThrow("qwen3-local")
 })
