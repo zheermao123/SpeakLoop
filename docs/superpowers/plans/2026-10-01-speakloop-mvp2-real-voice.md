@@ -1042,6 +1042,7 @@ Expected: 3 passed
 ```tsx
   async function runChatStream(userText: string) {
     setBusy(true); setFailed(null)
+    setPhase({ label: "等待 AI 回复", since: Date.now() })
     const messages = bubbles
       .filter(b => b.role !== "coach")
       .map(b => ({ role: b.role === "user" ? "user" as const : "assistant" as const, content: b.text }))
@@ -1057,6 +1058,7 @@ Expected: 3 passed
       if (!res.ok || !res.body) throw new Error(`stream ${res.status}`)
     } catch {
       setBubbles(b => b.slice(0, -2))
+      setPhase(null)
       setBusy(false)
       setFailed({ name: "chat", retry: () => runChatStream(userText) })
       return
@@ -1067,6 +1069,7 @@ Expected: 3 passed
     let reply = ""
     const goalsDone: number[] = []
     let errored = false
+    let firstDeltaAt = -1
     for (;;) {
       const { done, value } = await reader.read()
       if (done) break
@@ -1085,9 +1088,12 @@ Expected: 3 passed
         if (ev.type === "delta" && ev.text) {
           const t = ev.text
           setBubbles(b => b.map((x, i) => (i === b.length - 1 && x.role === "ai" ? { ...x, text: x.text + t } : x)))
-        } else if (ev.type === "sentence" && ev.text) {
-          const sentence = ev.text
-          queue().enqueue(() => postTts(sentence))
+          if (firstDeltaAt < 0) {
+            firstDeltaAt = 1
+            setPhase(null)
+          }
+        } else if (ev.type === "sentence") {
+          // v2 勘误 F3：前端不再按句合成，整段在 done 后合成
         } else if (ev.type === "done") {
           reply = ev.reply ?? ""
           goalsDone.push(...(ev.goalsDone ?? []))
@@ -1098,6 +1104,7 @@ Expected: 3 passed
     }
     if (errored || !reply) {
       setBubbles(b => b.slice(0, -2))
+      setPhase(null)
       setBusy(false)
       setFailed({ name: "chat", retry: () => runChatStream(userText) })
       return
@@ -1115,6 +1122,11 @@ Expected: 3 passed
     if (!ok) return
     pending.current = null
     setBusy(false)
+    setPhase({ label: "语音合成", since: Date.now() })
+    queue().enqueue(() => postTts(reply).then(b => {
+      setPhase(null)
+      return b
+    }))
   }
 
   async function runChat(mode: "simplify" | "hint") {
@@ -1138,6 +1150,34 @@ Expected: 3 passed
 6. 整体删除原 `playTts` 函数（职责已由 postTts + queue 承接）
 7. 键盘 onKeyDown 内 `await runChat(t)` 改为 `await runChatStream(t)`
 8. 两个教练按钮改为 `onClick={() => runChat("simplify")}` / `onClick={() => runChat("hint")}`
+9. **F4 分相位耗时指示器**（勘误 v2）——四处精确编辑：
+
+9.1 组件状态区（`audioQueue` ref 之后）追加：
+
+```tsx
+  const [phase, setPhase] = useState<{ label: string; since: number } | null>(null)
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    if (!phase) return
+    const id = setInterval(() => setTick(t => t + 1), 500)
+    return () => clearInterval(id)
+  }, [phase])
+```
+
+9.2 `runStt` 函数首行 `setBusy(true); setFailed(null)` 之后追加 `setPhase({ label: "语音识别", since: Date.now() })`；其 `if (!r.ok)` 与 catch 两个失败分支内各追加 `setPhase(null)`
+
+9.3 phase 清理点位核对（勘误 v2 后 Step 5 代码已内置）：首个 delta 到达置 null、`!reply` 失败路径置 null、建连 catch 置 null、语音合成完成置 null——核对四处齐全即可
+
+9.4 渲染区 `{busy && <p className="muted">思考中…</p>}` 一行替换为：
+
+```tsx
+        {phase && (
+          <p className="muted" aria-live="polite">
+            {phase.label}中… {((Date.now() - phase.since) / 1000).toFixed(0)}s
+          </p>
+        )}
+        {busy && !phase && <p className="muted">处理中…</p>}
+```
 
 - [ ] **Step 5b: 健壮性修订（勘误 R1/R2——在 Step 5 完成后的页面上实施）**
 

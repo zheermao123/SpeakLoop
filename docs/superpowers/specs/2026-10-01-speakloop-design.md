@@ -208,8 +208,9 @@ interface VocabWord {
 2. 停止 → `POST /api/stt`（multipart：sessionId + 音频）→ practice-service 转发 ai-server、音频落盘、生成 turnId → 返回 `{turnId, text, audioUrl, duration}` 上屏可核对
 3. `POST /api/chat {sessionId, scenarioId, messages}` → chat-service 从 store 读取待注入生词、构建 prompt → AI 回复文本**立即显示**，并解析 `[GOAL_DONE:n]`：命中则更新 `goalProgress` 并驱动进度条，标记本身从显示文本剥离；**容错：缺失/格式错误静默忽略，不影响对话**
 4. **轮次落盘 `POST /api/sessions/{id}/turns`——可失败步骤**：失败→内联重试（标签"轮次保存"），**不播 TTS、不进入下一轮**；重试成功后补播 TTS
-5. `POST /api/tts {text, speaker: scenario.voice ?? 'Aiden'}` → wav 返回后 `await play()` 播放（异步，不阻塞文字显示）；播放成功才清除离线标识，**播放被浏览器策略拒绝视同语音离线**
+5. `POST /api/tts {text: 完整回复, speaker}` → **整段一次合成**（v2 勘误：自然度优先，弃分句）→ `await play()` 播放；合成期间状态行实时显示耗时（`语音合成中… Ns`），播放被拒视同语音离线
 6. 任一步失败：该步内联显示重试按钮，已完成轮次不丢失
+7. **分相位耗时指示器**（v2 勘误 F4）：`语音识别中 / 等待 AI 回复中 / 语音合成中` 三相位实时秒数（500ms 刷新，`aria-live` 播报）——慢可接受，但不允许用户疑心卡死
 
 > 管道顺序（v1.3 勘误修正）：**stt → chat → save → tts**——轮次落盘先于语音播放，杜绝"气泡已显示但数据未落库"。
 
@@ -241,6 +242,8 @@ interface VocabWord {
 4. 回复保持英文、每次不超过 3 句（口语陪练短句多轮）
 ```
 
+**目标归属纪律（v2 勘误 F2）**：goals 是**学习者**的练习目标——仅当学习者最近 1-2 轮原话清楚达成该目标时才可标记 `[GOAL_DONE:n]`；学习者回答短/空泛/跑题时改用追问引导，宁缺勿滥；AI 自己推进对话**不算**达成。
+
 ### 6.5 场景管理
 
 - 内置 4 个：英文面试、周会汇报、向上沟通（manager 1:1）、同事寒暄 small talk
@@ -256,7 +259,7 @@ interface VocabWord {
 | 串行合计 | 最坏 ~10s | 文字先显对策下感知延迟≈STT+Chat |
 
 MVP 对策（均已纳入）：文字先显 + TTS 异步播放（感知延迟≈STT+Chat，3-8s）；回复 ≤3 句；`/warmup` 预热。
-升级路径（**spike 实测触发预案，升格为 MVP-2 必做项**）：`/api/chat` SSE 流式 + 分句 TTS 管线（感知延迟 <2-3s）——TTS 整段合成热延迟 10.44s 超 ≤5s 预算，非流式整段播放在真实语音阶段不可接受。
+升级路径（**v2 修订**）：SSE 流式已落地（打字机+goals 回收）；**分句 TTS 实机验证后按用户决策降为可选实验**——单句独立合成机械停顿明显、自然度差，最终采用整段合成。实测锚点：单句 TTS 合成 ~10.9s（3070+sdpa 本征吞吐）、整段感知延迟 ~13s 为已知限制，配套分相位耗时指示器缓解"卡死"疑虑；后续优化候选：0.6B 模型实测对比 / int8 量化。
 
 ## 7. ai-server 本地部署
 
@@ -345,7 +348,7 @@ ai-server 双服务跑通 `/health` `/stt`（:8100）与 `/tts`（:8101）；验
 脚手架（目录结构/domain/json-store/doctor）、mock providers、内置场景+自定义、对话页（键盘输入+Mock STT+文字回复+Mock TTS 提示音）、goals 进度、报告（zod+回填+highlights）、生词闭环（四态+结构化注入）、仪表盘统计。**结束态：无 GPU 无 Key 全流程可跑。**
 
 **MVP-2 —— 真实语音**
-`stt/qwen3-local` + `tts/qwen3-local` 接入、真实录音链路（音频落盘+原声回放）、warmup 预热、错误降级实测；**SSE 流式 chat + 分句 TTS 管线为必做项**（spike 实测 TTS 整段热延迟 10.44s 超 ≤5s 预算，见 §6.6）。
+`stt/qwen3-local` + `tts/qwen3-local` 接入、真实录音链路（音频落盘+原声回放）、warmup 预热、错误降级实测；**SSE 流式 chat 为必做项**；~~分句 TTS 管线~~（v2 修订：实机验证后按用户决策降为可选实验，采用整段合成+相位耗时指示器，见 §6.6）。
 
 **收尾 —— 打磨**
 辅助按钮体验、报告页排版、测试补齐、E2E（可选）。

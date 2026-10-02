@@ -295,9 +295,6 @@ label.field .req { color: var(--color-destructive); }
 .stat-accent { color: var(--color-accent); }
 .goal-done { color: var(--color-accent); font-weight: 600; }
 
-.recording { animation: pulse 1.2s ease-in-out infinite; }
-@keyframes pulse { 50% { opacity: 0.6; } }
-
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
@@ -854,6 +851,8 @@ it("包含 persona、goals、3 句上限与 GOAL_DONE 指令", () => {
   expect(p).toContain("Introduce yourself")
   expect(p).toContain("at most 3 sentences")
   expect(p).toContain("[GOAL_DONE:n]")
+  expect(p).toContain("belong to the LEARNER")
+  expect(p).toContain("do NOT mark the goal")
 })
 
 it("生词为空时不出现词汇段", () => {
@@ -902,7 +901,9 @@ export function buildSystemPrompt(scenario: Scenario, vocab: VocabWord[]): strin
     )
   }
   lines.push(
-    "When a practice goal is achieved in the conversation, append the marker [GOAL_DONE:n] (n = goal index, starting from 0) at the very end of your reply. Use each index at most once."
+    "Practice goals belong to the LEARNER - a goal is achieved only by what the LEARNER says, never by your own replies.",
+    "Before appending [GOAL_DONE:n] (n = goal index, starting from 0) at the very end of your reply, verify the learner's own words in their last one or two messages clearly fulfill that goal.",
+    "If the learner's contribution is too short, vague or off-topic, do NOT mark the goal; ask a follow-up question to elicit it. When unsure, do not mark. Use each index at most once."
   )
   return lines.join("\n")
 }
@@ -2389,7 +2390,7 @@ export default function Recorder({ onRecorded, disabled }: { onRecorded: (b: Blo
     <div>
       <button
         type="button"
-        className={`btn ${recording ? "btn-danger recording" : ""}`}
+        className={`btn ${recording ? "btn-danger" : ""}`}
         onClick={toggle}
         disabled={disabled}
         aria-pressed={recording}
