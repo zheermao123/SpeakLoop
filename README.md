@@ -46,7 +46,7 @@ Next.js 全栈（薄路由 → services 业务层 → json-store 存储）
 
 ## 一键启动（推荐）
 
-双击根目录 **`启动SpeakLoop.vbs`**：无窗口拉起 ai-server 双服务 + Next.js，就绪后自动打开浏览器（语音预热约 2-3 分钟）。**`停止SpeakLoop.vbs`** 一键停止。日志见 `logs/`。
+双击根目录 **`启动SpeakLoop.vbs`**：无窗口拉起 ai-server 双服务 + Next.js，就绪后自动打开浏览器（语音预热约 2-3 分钟）。**关闭浏览器约 30 秒后自动停止全栈**（心跳看门狗，释放 GPU；多标签任一存活即保活；`AUTO_STOP=0` 可关闭该行为，`AUTO_STOP_IDLE_MS` 可调阈值）。**`停止SpeakLoop.vbs`** 手动立即停止。日志见 `logs/`。
 
 ## 配置说明
 
