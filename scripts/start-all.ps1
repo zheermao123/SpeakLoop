@@ -61,14 +61,9 @@ try {
   Invoke-WebRequest -Uri "http://127.0.0.1:8101/warmup" -Method POST -UseBasicParsing -TimeoutSec 5 | Out-Null
 } catch {}
 
-if (-not $Silent) {
-  $msg = if ($nextUp) {
-    "SpeakLoop 已启动。文字模式立即可用；语音预热中（约 2-3 分钟后可对话）。"
-  } else {
-    "SpeakLoop 启动超时，请查看 logs\ 目录日志。"
-  }
+if (-not $nextUp -and -not $Silent) {
   $shell = New-Object -ComObject Wscript.Shell
-  $shell.Popup($msg, 8, "SpeakLoop", 64) | Out-Null
+  $shell.Popup("SpeakLoop 启动超时，请查看 logs\ 目录日志。", 8, "SpeakLoop", 16) | Out-Null
 }
 
 if ($nextUp -and -not $NoBrowser) {
