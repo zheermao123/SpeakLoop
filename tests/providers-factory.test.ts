@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it, vi } from "vitest"
+import { afterEach, expect, it, vi } from "vitest"
 
 function freshTypes() {
   vi.resetModules()
@@ -7,19 +7,9 @@ function freshTypes() {
 
 const KEYS = ["STT_PROVIDER", "TTS_PROVIDER", "CHAT_PROVIDER", "STT_BASE_URL", "TTS_BASE_URL", "CHAT_BASE_URL", "CHAT_API_KEY", "CHAT_MODEL"] as const
 
-beforeEach(() => {
+afterEach(() => {
   vi.resetModules()
   for (const k of KEYS) delete process.env[k]
-})
-afterEach(() => {
-  for (const k of KEYS) delete process.env[k]
-})
-
-it("默认全 mock", async () => {
-  const { getSTT, getChat, getTTS } = await freshTypes()
-  expect((await getSTT()).constructor.name).toBe("MockSttProvider")
-  expect((await getChat()).constructor.name).toBe("MockChatProvider")
-  expect((await getTTS()).constructor.name).toBe("MockTtsProvider")
 })
 
 it("qwen3-local 分流", async () => {
@@ -30,7 +20,7 @@ it("qwen3-local 分流", async () => {
   expect((await getTTS()).constructor.name).toBe("Qwen3LocalTts")
 })
 
-it("openai-compatible 分流", async () => {
+it("openai-compatible 完整 env 分流", async () => {
   process.env.CHAT_PROVIDER = "openai-compatible"
   process.env.CHAT_BASE_URL = "https://api.example.com/v1"
   process.env.CHAT_API_KEY = "sk-x"
@@ -39,9 +29,16 @@ it("openai-compatible 分流", async () => {
   expect((await getChat()).constructor.name).toBe("OpenAICompatibleChatProvider")
 })
 
-it("openai-compatible 缺 env 时 fail-fast（勘误 R3）", async () => {
+it("openai-compatible 缺 env 时 fail-fast", async () => {
   process.env.CHAT_PROVIDER = "openai-compatible"
   process.env.CHAT_API_KEY = "sk-x"
   const { getChat } = await freshTypes()
   await expect(getChat()).rejects.toThrow("CHAT_BASE_URL")
+})
+
+it("未配置 provider 抛出配置指引（mock 兜底已移除）", async () => {
+  const { getSTT, getChat, getTTS } = await freshTypes()
+  await expect(getSTT()).rejects.toThrow("STT_PROVIDER")
+  await expect(getChat()).rejects.toThrow("CHAT_PROVIDER")
+  await expect(getTTS()).rejects.toThrow("TTS_PROVIDER")
 })

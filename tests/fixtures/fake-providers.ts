@@ -1,7 +1,17 @@
-import { ChatProvider } from "@/lib/providers/types"
+import { ChatProvider, STTProvider, STTResult, TTSProvider } from "@/lib/providers/types"
 
-export class MockChatProvider implements ChatProvider {
-  async chat(system: string, messages: { role: "user" | "assistant"; content: string }[]): Promise<string> {
+export class FakeSttProvider implements STTProvider {
+  async transcribe(_audio: Blob): Promise<STTResult> {
+    return { text: "This is a mock transcription for local development." }
+  }
+}
+
+export class FakeChatProvider implements ChatProvider {
+  constructor(_cfg?: unknown) {}
+  async chat(
+    system: string,
+    messages: { role: "user" | "assistant"; content: string }[]
+  ): Promise<string> {
     const last = messages[messages.length - 1]?.content ?? ""
     if (system.includes("report analyzer")) {
       const m = last.match(/\[([^\]]+)\]\s*(.+)/s)
@@ -24,7 +34,6 @@ export class MockChatProvider implements ChatProvider {
     if (userCount >= 4) return "Great, I think we've covered a lot today. Thanks! [GOAL_DONE:1]"
     return "Interesting. Please go on."
   }
-
   async chatStream(
     system: string,
     messages: { role: "user" | "assistant"; content: string }[],
@@ -33,5 +42,22 @@ export class MockChatProvider implements ChatProvider {
     const full = await this.chat(system, messages)
     for (let i = 0; i < full.length; i += 16) onDelta(full.slice(i, i + 16))
     return full
+  }
+}
+
+export class FakeTtsProvider implements TTSProvider {
+  async synthesize(_text: string, _options?: { speaker?: string }): Promise<ArrayBuffer> {
+    const sampleRate = 8000
+    const n = Math.floor((sampleRate * 150) / 1000)
+    const buf = new ArrayBuffer(44 + n * 2)
+    const v = new DataView(buf)
+    const w = (o: number, s: string) => {
+      for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i))
+    }
+    w(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt ")
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true)
+    v.setUint32(24, sampleRate, true); v.setUint32(28, sampleRate * 2, true)
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n * 2, true)
+    return buf
   }
 }
