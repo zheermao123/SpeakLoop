@@ -1,4 +1,4 @@
-# SpeakLoop MVP-2 实施计划（真实语音 + 真实 Chat）
+﻿# SpeakLoop MVP-2 实施计划（真实语音 + 真实 Chat）
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -184,9 +184,11 @@ it("工具函数：完整标记剥离与部分前缀检测", () => {
   expect(stripGoalMarkers("a [GOAL_DONE:3] b", goals)).toBe("a  b")
   expect(goals).toEqual([3])
   expect(trailingMarkerPrefix("x [GOAL_D")).toBe(7)
-  expect(trailingMarkerPrefix("x [GOAL_DONE:12")).toBe(14)
+  expect(trailingMarkerPrefix("x [GOAL_DONE:12")).toBe(13)
+  expect(trailingMarkerPrefix("x [GOAL_DONE:123")).toBe(14)
   expect(trailingMarkerPrefix("clean.")).toBe(0)
 })
+（勘误清算 2026-10-02，E-c5 溯源：原字面量 12 断言 14 与实现不符——2 位数字窗口返回 13；执行期经用户裁定以 12→123（3 位上限边界）保持绿（b7b45de）。此处同步双断言并载溯源，与仓库一致。）
 
 it("flush 剥离截断的标记残段（词干截断，勘误 R5）", () => {
   const out: string[] = []

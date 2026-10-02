@@ -1,4 +1,4 @@
-# SpeakLoop 设计文档
+﻿# SpeakLoop 设计文档
 
 - 日期：2026-10-01（v1.4：生产 Mock 移除——Mock 定性为测试脚手架，生产零 mock、假件下沉 tests/fixtures；历史沿革见各勘误记录 `docs/superpowers/plans/*erratum*.md`）
 - 状态：已确认
@@ -205,7 +205,7 @@ interface VocabWord {
 ### 6.1 对话轮次
 
 1. 用户点击录音 → MediaRecorder 采集（webm/opus）；**键盘输入作为并行入口**（开发调试 + STT 故障降级双用途，`sttProvider='keyboard'`）
-2. 停止 → `POST /api/stt`（multipart：sessionId + 音频）→ practice-service 转发 ai-server、音频落盘、生成 turnId → 返回 `{turnId, text, audioUrl, duration}` 上屏可核对
+2. 停止 → `POST /api/stt`（multipart：sessionId + 音频）→ practice-service 转发 ai-server、音频落盘、生成 turnId → 返回 `{turnId, text, audioUrl}` 上屏可核对（勘误清算：原列 duration 从未实现，Turn.duration 为预留字段不填充）
 3. `POST /api/chat {sessionId, scenarioId, messages}` → chat-service 从 store 读取待注入生词、构建 prompt → AI 回复文本**立即显示**，并解析 `[GOAL_DONE:n]`：命中则更新 `goalProgress` 并驱动进度条，标记本身从显示文本剥离；**容错：缺失/格式错误静默忽略，不影响对话**
 4. **轮次落盘 `POST /api/sessions/{id}/turns`——可失败步骤**：失败→内联重试（标签"轮次保存"），**不播 TTS、不进入下一轮**；重试成功后补播 TTS
 5. `POST /api/tts {text: 完整回复, speaker}` → **整段一次合成**（v2 勘误：自然度优先，弃分句）→ `await play()` 播放；合成期间状态行实时显示耗时（`语音合成中… Ns`），播放被拒视同语音离线
@@ -277,7 +277,7 @@ MVP 对策（均已纳入）：文字先显 + TTS 异步播放（感知延迟≈
 
 - `POST /stt`（:8100）：multipart 音频（webm/opus 原样）→ PyAV 解码归一 16kHz → `transcribe(language="English")` → `{text}`
 - `POST /tts`（:8101）：`{text, speaker?, instruct?}` → `audio/wav`（language 固定 English）
-- `GET /health`（各自）：`{status:'ok', asr:bool}` / `{status:'ok', tts:bool}`
+- `GET /health`（各自）：`{status:'ok', role:'asr'|'tts', model_loaded:bool}`（勘误清算：原写 asr/tts 布尔形状与实装不符）
 - `POST /warmup`（各自）：对本服务模型执行一次首推理，把冷启动挪到无感时机（前端仪表盘加载时 fire-and-forget 触发两服务）
 
 ### 7.3 Next.js 侧与降级

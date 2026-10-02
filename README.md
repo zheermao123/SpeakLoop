@@ -78,7 +78,7 @@ Next.js 全栈（薄路由 → services 业务层 → json-store 存储）
 
 | 命令 | 用途 |
 |---|---|
-| `npm test` | 单元测试（77 个，假件位于 tests/fixtures，生产零 mock） |
+| `npm test` | 单元测试（76 个，假件位于 tests/fixtures，生产零 mock） |
 | `npm run typecheck` | 全量类型检查 |
 | `npm run build` | 生产构建 |
 | `npm run doctor` | 环境自检（Node/数据目录/双服务健康/GPU） |

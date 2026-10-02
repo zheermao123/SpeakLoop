@@ -1,4 +1,4 @@
-# SpeakLoop MVP-2 计划勘误记录（Erratum v1）
+﻿# SpeakLoop MVP-2 计划勘误记录（Erratum v1）
 
 - 日期：2026-10-01
 - 背景：MVP-2 全分支终审裁定 **With fixes**——5 项 Important 全部成立（全部 ≤20 行修复），经设计方逐项技术核验确认。与前次一致：缺陷全部源于计划文本（plan-verbatim / plan-mandated），实现忠实。本文档为审计轨迹；权威修复已就地写入 MVP-2 计划正文。
@@ -46,3 +46,36 @@ R4 暴露的门禁盲区（vitest/esbuild 不做类型检查、next build 不检
 ### 测试影响
 
 prompts 断言更新（新规则文本）；计数不变，终态 76 passed。
+
+## 六、设计侧累计勘误清算（2026-10-02，源自执行方台账 `.superpowers/sdd/progress.md` 全量查阅）
+
+### 6.1 MVP-2 勘误候选 E-c1~c5 处置结论
+
+| # | 内容 | 结论 |
+|---|---|---|
+| E-c1 | 计划 T7 测试片段 Promise&lt;number&gt; 类型 bug | **已闭环**（R4，勘误 v1 §二） |
+| E-c2 | 计划 T7 页面片段违反 spec §9 busy try/finally | **已闭环**（R2） |
+| E-c3 | 计划 T6 路由部分标记残段洞 | **已闭环**（R5） |
+| E-c4 | 计划 T5 `?? ''` 回退迟失败 | **已闭环**（R3 fail-fast） |
+| E-c5 | T2 测试字面量 12/14 与实现不符 | **今日溯源落盘**：mvp2 计划同步双断言（12→13、123→14）+ 裁定记录（b7b45de） |
+
+### 6.2 Mock 移除计划修订（今日落盘）
+
+- 计数 77→**76**：原算术 +1 有误——旧工厂测试文件实有 **4** 用例（非 3），76−4+4=76；README 同步
+- T2 签名 `= await getChat()` 系 **TS2524**（await 不得入默认参数）——计划同步为 `null 默认 + ?? await getChat()`（与实施 6f23770 一致）
+- 测试导入路径 `../fixtures` → `./fixtures`（tests/ 内相对路径）
+- 补录执行方被迫偏离：chat-stream-route 测试需 beforeEach 环境清理（工厂 env 守卫先于 import 生效）
+
+### 6.3 Mock 移除 Final Review 已知限制（用户裁定 2026-10-02：DO NOT FIX，记录在案）
+
+- **配置指引死信**：provider 未配置时 4 个路由裸 500 / 报告路由映射 404 / SSE error 事件的 message 被客户端丢弃（仅置 errored）——指引诚实但不可达；**spec §9 fast-follow 候选**（统一错误契约：JSON 错误体 + 前端展示 message）
+- Minor：stt/warmup 路由残留死 `?? "mock"` 字符串；warmup 测试名语义过期；report.ts provider 先于 session 检查求值（配置态不可观测）
+
+### 6.4 spec/文档失真修正（今日落盘）
+
+- spec §6.1：stt 响应剔除 `duration`（从未实现，字段预留不填充）
+- spec §7.2：health 形状改为实装 `{status, role, model_loaded}`
+
+### 6.5 工具链待办（流程项，非文档）
+
+- 评审包 diff 工件字符损坏（MVP-1 起复发，homoglyph 乱码）——**下次阶段前修复生成器**，否则影响后续评审效率

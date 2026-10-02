@@ -1,16 +1,16 @@
-# SpeakLoop Mock 移除实施计划（生产零 Mock + 测试夹具下沉）
+﻿# SpeakLoop Mock 移除实施计划（生产零 Mock + 测试夹具下沉）
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans. Steps use checkbox syntax.
 
-**Goal:** 生产代码彻底移除 Mock（用户裁定：Mock 是测试脚手架，不该出现在产品里）；测试假件下沉 `tests/fixtures/` 保持 76→77 全绿；README 重定位为真实路径文档。
+**Goal:** 生产代码彻底移除 Mock（用户裁定：Mock 是测试脚手架，不该出现在产品里）；测试假件下沉 `tests/fixtures/` 保持 76 全绿；README 重定位为真实路径文档。
 
 **背景：** Mock 三重动机（测试隔离/零依赖起步/演示）中，前两者要求它**只存在于测试侧**；README 主推 Mock 是文档定位错误（MVP-1 遗留未清理）。
 
-**Tech Stack:** 既有基线（77 tests 目标、typecheck、build）。
+**Tech Stack:** 既有基线（76 tests 目标、typecheck、build；勘误清算：原写 77 系算术错误——旧工厂测试文件实有 4 用例而非 3，76−4+4=76）。
 
 ## Global Constraints
 
-- 基线 76 tests；本计划 +1（工厂未配置指引测试）→ **77**
+- 基线 76 tests；工厂用例 4→4（重写）→ **76**（勘误清算：原算术 +1 有误，旧文件本就有 4 用例）
 - 每任务 `npm test` 全绿；最后 `npm run typecheck && npm run build`
 - 删除的三个 mock 文件的行为逻辑**原样迁移**到 `tests/fixtures/fake-providers.ts`（不许丢断言行为）
 - 所有涉及 `getChat()` 的服务改为**可选注入**（默认仍走工厂），路由调用点不变
@@ -201,7 +201,7 @@ git commit -m "refactor: remove mock providers from production, fixtures moved t
 - Modify: `tests/report-service.test.ts`、`tests/scenario-service.test.ts`、`tests/providers-chat-stream.test.ts`、`tests/chat-stream-route.test.ts`
 
 **Interfaces:**
-- Produces: `generateReport(sessionId: string, chat: ChatProvider = await getChat())`；`draftScenario(description: string, chat: ChatProvider = await getChat())`——生产调用点（路由）不传参行为不变；测试显式传 FakeChatProvider
+- Produces: `generateReport(sessionId: string, chat: ChatProvider | null = null)`；`draftScenario(description: string, chat: ChatProvider | null = null)`——生产调用点（路由）不传参行为不变；测试显式传 FakeChatProvider
 - chat-stream-route 测试用 `vi.mock("@/lib/providers/chat/openai-compatible")` 把工厂产物替换为 FakeChatProvider（路由无注入点，模块级替换）
 
 - [ ] **Step 1: 服务签名改造**
@@ -210,7 +210,7 @@ git commit -m "refactor: remove mock providers from production, fixtures moved t
 
 ```ts
 import { ChatProvider } from "@/lib/providers/types"
-export async function generateReport(sessionId: string, chat: ChatProvider = await getChat()): Promise<Report> {
+export async function generateReport(sessionId: string, chat: ChatProvider | null = null): Promise<Report> {
 ```
 （函数体内原 `await getChat()` 改用参数 `chat`；`getChat` 保留 import 供默认值。）
 
@@ -218,20 +218,20 @@ export async function generateReport(sessionId: string, chat: ChatProvider = awa
 
 ```ts
 import { ChatProvider } from "@/lib/providers/types"
-export async function draftScenario(description: string, chat: ChatProvider = await getChat()): Promise<Scenario> {
+export async function draftScenario(description: string, chat: ChatProvider | null = null): Promise<Scenario> {
 ```
 （体内 `getChat()` 改用 `chat`。）
 
 - [ ] **Step 2: 测试迁移**
 
-1. `tests/report-service.test.ts`：顶部 `import { FakeChatProvider } from "../fixtures/fake-providers"`；两处 `generateReport(s.id)` → `generateReport(s.id, new FakeChatProvider())`；`generateReport("nope")` 处同样传 fake（先到 session 检查，行为不变）
+1. `tests/report-service.test.ts`：顶部 `import { FakeChatProvider } from "./fixtures/fake-providers"`；两处 `generateReport(s.id)` → `generateReport(s.id, new FakeChatProvider())`；`generateReport("nope")` 处同样传 fake（先到 session 检查，行为不变）
 2. `tests/scenario-service.test.ts`：`draftScenario("和外国客户谈判交期")` → `draftScenario("和外国客户谈判交期", new FakeChatProvider())`
-3. `tests/providers-chat-stream.test.ts`：改用 `import { FakeChatProvider } from "../fixtures/fake-providers"`，`const c = new FakeChatProvider()`（两用例逻辑不变）
+3. `tests/providers-chat-stream.test.ts`：改用 `import { FakeChatProvider } from "./fixtures/fake-providers"`，`const c = new FakeChatProvider()`（两用例逻辑不变）
 4. `tests/chat-stream-route.test.ts`：顶部追加
 
 ```ts
 vi.mock("@/lib/providers/chat/openai-compatible", async () => {
-  const { FakeChatProvider } = await import("../fixtures/fake-providers")
+  const { FakeChatProvider } = await import("./fixtures/fake-providers")
   return { OpenAICompatibleChatProvider: FakeChatProvider }
 })
 ```
@@ -239,7 +239,7 @@ vi.mock("@/lib/providers/chat/openai-compatible", async () => {
 - [ ] **Step 3: 全量回归**
 
 Run: `npm test`
-Expected: **77 passed**（76 基线 − 3 旧工厂用例 + 4 新工厂用例）
+Expected: **76 passed**（76 基线 − 4 旧工厂用例 + 4 新工厂用例）
 
 - [ ] **Step 4: Commit**
 
@@ -290,7 +290,7 @@ CHAT_MODEL=deepseek-chat
 
 - [ ] **Step 3: 验证与提交**
 
-Run: `npm test`（77）→ `npm run typecheck` → `npm run build`
+Run: `npm test`（76）→ `npm run typecheck` → `npm run build`
 
 ```powershell
 git add README.md .env.example
@@ -314,7 +314,7 @@ npm run build
 npm run doctor
 ```
 
-Expected: 77 passed / 0 error / build 成功 / doctor 双服务健康
+Expected: 76 passed / 0 error / build 成功 / doctor 双服务健康
 
 - [ ] **Step 2: 手动走查**
 
