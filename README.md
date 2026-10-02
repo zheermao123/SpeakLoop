@@ -21,3 +21,7 @@ npm run dev
 ## ç¯å¢ƒå˜é‡
 
 è§ `.env.example`ã€‚è®¾è®¡æ–‡æ¡£ï¼š`docs/superpowers/specs/2026-10-01-speakloop-design.md`
+
+## Ò»¼üÆô¶¯£¨ÍÆ¼ö£©
+
+Ë«»÷¸ùÄ¿Â¼ `Æô¶¯SpeakLoop.vbs`£ºÎŞ´°¿ÚÀ­Æğ ai-server Ë«·şÎñ + Next.js£¬¾ÍĞ÷ºó×Ô¶¯´ò¿ªä¯ÀÀÆ÷£¨ÓïÒôÔ¤ÈÈÔ¼ 2-3 ·ÖÖÓ£©¡£`Í£Ö¹SpeakLoop.vbs` Ò»¼üÍ£Ö¹¡£ÈÕÖ¾¼û `logs/`¡£
