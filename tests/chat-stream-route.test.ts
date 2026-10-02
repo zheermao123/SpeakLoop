@@ -1,11 +1,20 @@
 import { mkdtempSync } from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { beforeEach, expect, it } from "vitest"
+import { beforeEach, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
+
+vi.mock("@/lib/providers/chat/openai-compatible", async () => {
+  const { FakeChatProvider } = await import("./fixtures/fake-providers")
+  return { OpenAICompatibleChatProvider: FakeChatProvider }
+})
 
 beforeEach(() => {
   process.env.DATA_DIR = mkdtempSync(path.join(os.tmpdir(), "sl-test-"))
+  process.env.CHAT_PROVIDER = "openai-compatible"
+  process.env.CHAT_BASE_URL = "http://test.local"
+  process.env.CHAT_API_KEY = "test-key"
+  process.env.CHAT_MODEL = "test-model"
 })
 
 async function post(messages: { role: string; content: string }[]) {

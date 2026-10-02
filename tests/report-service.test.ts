@@ -7,6 +7,7 @@ import { Turn } from "@/lib/domain/types"
 import { addWord, listWords } from "@/lib/services/vocab"
 import { createSession, appendTurn, getSession } from "@/lib/services/practice"
 import { backfillCorrections, generateReport } from "@/lib/services/report"
+import { FakeChatProvider } from "./fixtures/fake-providers"
 
 beforeEach(() => {
   process.env.DATA_DIR = mkdtempSync(path.join(os.tmpdir(), "sl-test-"))
@@ -59,7 +60,7 @@ it("generateReport 全链路：报告落库、生词计数、会话结束", asyn
   const s = await createSession("builtin-interview")
   await appendTurn(s.id, turn("t1", "I go yesterday because we hit a blocker"))
   await addWord({ word: "blocker", translation: "阻碍", example: "We hit a blocker.", sourceSessionId: "other" })
-  const report = await generateReport(s.id)
+  const report = await generateReport(s.id, new FakeChatProvider())
   expect(report.corrections[0].turnId).toBe("t1")
   const stored = (await getSession(s.id))!
   expect(stored.report?.summary).toBeTruthy()
@@ -70,5 +71,5 @@ it("generateReport 全链路：报告落库、生词计数、会话结束", asyn
 })
 
 it("generateReport 会话不存在抛错", async () => {
-  await expect(generateReport("nope")).rejects.toThrow("session not found")
+  await expect(generateReport("nope", new FakeChatProvider())).rejects.toThrow("session not found")
 })

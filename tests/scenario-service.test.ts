@@ -3,6 +3,7 @@ import os from "node:os"
 import path from "node:path"
 import { beforeEach, expect, it } from "vitest"
 import { createScenario, draftScenario, getScenario, listScenarios } from "@/lib/services/scenario"
+import { FakeChatProvider } from "./fixtures/fake-providers"
 
 beforeEach(() => {
   process.env.DATA_DIR = mkdtempSync(path.join(os.tmpdir(), "sl-test-"))
@@ -28,7 +29,7 @@ it("createScenario 保存并可查询", async () => {
 })
 
 it("draftScenario 返回未落库草稿（id 为空）", async () => {
-  const d = await draftScenario("和外国客户谈判交期")
+  const d = await draftScenario("和外国客户谈判交期", new FakeChatProvider())
   expect(d.id).toBe("")
   expect(d.title).toContain("谈判")
   expect((await listScenarios()).length).toBe(4)

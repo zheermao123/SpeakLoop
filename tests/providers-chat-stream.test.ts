@@ -1,8 +1,8 @@
 import { expect, it } from "vitest"
-import { getChat } from "@/lib/providers/types"
+import { FakeChatProvider } from "./fixtures/fake-providers"
 
 it("chatStream 分块回调且拼接等于全文", async () => {
-  const c = await getChat()
+  const c = new FakeChatProvider()
   const chunks: string[] = []
   const full = await c.chatStream(
     "You are an English speaking coach.",
@@ -15,7 +15,7 @@ it("chatStream 分块回调且拼接等于全文", async () => {
 })
 
 it("report 分支经流式返回合法 JSON", async () => {
-  const c = await getChat()
+  const c = new FakeChatProvider()
   const full = await c.chatStream(
     "You are a spoken-English report analyzer.",
     [{ role: "user", content: "[abc-123] I go yesterday" }],

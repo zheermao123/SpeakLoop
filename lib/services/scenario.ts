@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import { Scenario } from "@/lib/domain/types"
-import { getChat } from "@/lib/providers/types"
+import { ChatProvider, getChat } from "@/lib/providers/types"
 import { read, update } from "@/lib/store/json-store"
 
 const SEED_SCENARIOS: Scenario[] = [
@@ -62,11 +62,12 @@ export async function createScenario(input: {
   return scenario
 }
 
-export async function draftScenario(description: string): Promise<Scenario> {
+export async function draftScenario(description: string, chat?: ChatProvider): Promise<Scenario> {
+  const provider = chat ?? (await getChat())
   const system =
     "You are a scenario designer for workplace English practice. Output ONLY a JSON object: " +
     '{"title":string(中文),"persona":string(English role-play setting),"goals":string[](3 English goals),"difficulty":"easy"|"medium"|"hard"}'
-  const raw = await (await getChat()).chat(system, [{ role: "user", content: description }])
+  const raw = await provider.chat(system, [{ role: "user", content: description }])
   let draft: Scenario
   try {
     const j = JSON.parse(raw.replace(/^```(?:json)?\s*|\s*```$/g, ""))

@@ -1,6 +1,6 @@
 import { Report, ReportCorrection, Turn } from "@/lib/domain/types"
 import { RawReport, tolerantParse } from "@/lib/report-schema"
-import { getChat } from "@/lib/providers/types"
+import { ChatProvider, getChat } from "@/lib/providers/types"
 import { endSession, getSession, saveReport } from "@/lib/services/practice"
 import { listWords, markUsedInSession } from "@/lib/services/vocab"
 
@@ -42,11 +42,12 @@ const REPORT_SYSTEM =
   '"vocabCandidates":[{word:string,translation:string,example:string(英文例句)}]}. ' +
   "Analyze ONLY the turns given in the transcript. Every correction MUST carry the turnId shown in [brackets]. Never invent sentences."
 
-export async function generateReport(sessionId: string): Promise<Report> {
+export async function generateReport(sessionId: string, chat?: ChatProvider): Promise<Report> {
+  const provider = chat ?? (await getChat())
   const session = await getSession(sessionId)
   if (!session) throw new Error("session not found")
   const transcript = session.turns.map(t => `[${t.id}] ${t.userText}`).join("\n")
-  const rawText = await (await getChat()).chat(REPORT_SYSTEM, [
+  const rawText = await provider.chat(REPORT_SYSTEM, [
     { role: "user", content: `Transcript:\n${transcript}` },
   ])
   const parsed = tolerantParse(rawText)
