@@ -22,6 +22,6 @@ npm run dev
 
 见 `.env.example`。设计文档：`docs/superpowers/specs/2026-10-01-speakloop-design.md`
 
-## һ��������Ƽ���
+## 一键启动（推荐）
 
-˫����Ŀ¼ `���SpeakLoop.vbs`���޴������� ai-server ˫���� + Next.js���������Զ��������������Ԥ��Լ 2-3 ���ӣ���`ֹͣSpeakLoop.vbs` һ��ֹͣ����־�� `logs/`��
+双击根目录 `启动SpeakLoop.vbs`：无窗口拉起 ai-server 双服务 + Next.js，就绪后自动打开浏览器（语音预热约 2-3 分钟）。`停止SpeakLoop.vbs` 一键停止。日志见 `logs/`。
