@@ -17,7 +17,9 @@ export function buildSystemPrompt(scenario: Scenario, vocab: VocabWord[]): strin
     )
   }
   lines.push(
-    "When a practice goal is achieved in the conversation, append the marker [GOAL_DONE:n] (n = goal index, starting from 0) at the very end of your reply. Use each index at most once."
+    "Practice goals belong to the LEARNER - a goal is achieved only by what the LEARNER says, never by your own replies.",
+    "Before appending [GOAL_DONE:n] (n = goal index, starting from 0) at the very end of your reply, verify the learner's own words in their last one or two messages clearly fulfill that goal.",
+    "If the learner's contribution is too short, vague or off-topic, do NOT mark the goal; ask a follow-up question to elicit it. When unsure, do not mark. Use each index at most once."
   )
   return lines.join("\n")
 }

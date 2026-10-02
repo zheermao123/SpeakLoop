@@ -158,9 +158,6 @@ label.field .req { color: var(--color-destructive); }
 .stat-accent { color: var(--color-accent); }
 .goal-done { color: var(--color-accent); font-weight: 600; }
 
-.recording { animation: pulse 1.2s ease-in-out infinite; }
-@keyframes pulse { 50% { opacity: 0.6; } }
-
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }

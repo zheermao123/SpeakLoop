@@ -18,6 +18,8 @@ it("包含 persona、goals、3 句上限与 GOAL_DONE 指令", () => {
   expect(p).toContain("Introduce yourself")
   expect(p).toContain("at most 3 sentences")
   expect(p).toContain("[GOAL_DONE:n]")
+  expect(p).toContain("belong to the LEARNER")
+  expect(p).toContain("do NOT mark the goal")
 })
 
 it("生词为空时不出现词汇段", () => {

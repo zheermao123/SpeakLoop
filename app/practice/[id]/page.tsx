@@ -24,6 +24,13 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [keyboard, setKeyboard] = useState("")
   const pending = useRef<{ turnId?: string; audioUrl?: string; userText: string; sttProvider?: string } | null>(null)
   const audioQueue = useRef<AudioQueue | null>(null)
+  const [phase, setPhase] = useState<{ label: string; since: number } | null>(null)
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    if (!phase) return
+    const id = setInterval(() => setTick(t => t + 1), 500)
+    return () => clearInterval(id)
+  }, [phase])
   function queue(): AudioQueue {
     if (!audioQueue.current) {
       audioQueue.current = new AudioQueue(async buf => {
@@ -74,6 +81,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   async function runStt(blob: Blob) {
     setBusy(true); setFailed(null)
+    setPhase({ label: "语音识别", since: Date.now() })
     const form = new FormData()
     form.set("sessionId", session!.id)
     form.set("audio", blob, "turn.webm")
@@ -81,9 +89,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     try {
       r = await fetch("/api/stt", { method: "POST", body: form })
     } catch {
-      setBusy(false); setFailed({ name: "stt", retry: () => runStt(blob) }); return
+      setPhase(null); setBusy(false); setFailed({ name: "stt", retry: () => runStt(blob) }); return
     }
-    if (!r.ok) { setBusy(false); setFailed({ name: "stt", retry: () => runStt(blob) }); return }
+    if (!r.ok) { setPhase(null); setBusy(false); setFailed({ name: "stt", retry: () => runStt(blob) }); return }
     const data = await r.json()
     pending.current = { turnId: data.turnId, audioUrl: data.audioUrl, userText: data.text, sttProvider: data.sttProvider }
     await runChatStream(data.text)
@@ -91,6 +99,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   async function runChatStream(userText: string) {
     setBusy(true); setFailed(null)
+    setPhase({ label: "等待 AI 回复", since: Date.now() })
     const messages = bubbles
       .filter(b => b.role !== "coach")
       .map(b => ({ role: b.role === "user" ? "user" as const : "assistant" as const, content: b.text }))
@@ -106,6 +115,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       if (!res.ok || !res.body) throw new Error(`stream ${res.status}`)
     } catch {
       setBubbles(b => b.slice(0, -2))
+      setPhase(null)
       setBusy(false)
       setFailed({ name: "chat", retry: () => runChatStream(userText) })
       return
@@ -116,6 +126,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     let reply = ""
     const goalsDone: number[] = []
     let errored = false
+    let firstDeltaAt = -1
     for (;;) {
       const { done, value } = await reader.read().catch(() => ({ done: true, value: undefined }))
       if (done) break
@@ -134,9 +145,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         if (ev.type === "delta" && ev.text) {
           const t = ev.text
           setBubbles(b => b.map((x, i) => (i === b.length - 1 && x.role === "ai" ? { ...x, text: x.text + t } : x)))
-        } else if (ev.type === "sentence" && ev.text) {
-          const sentence = ev.text
-          queue().enqueue(() => postTts(sentence))
+          if (firstDeltaAt < 0) {
+            firstDeltaAt = 1
+            setPhase(null)
+          }
+        } else if (ev.type === "sentence") {
+          // v2 勘误 F3：前端不再按句合成，整段在 done 后合成
         } else if (ev.type === "done") {
           reply = ev.reply ?? ""
           goalsDone.push(...(ev.goalsDone ?? []))
@@ -147,6 +161,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     }
     if (errored || !reply) {
       setBubbles(b => b.slice(0, -2))
+      setPhase(null)
       setBusy(false)
       setFailed({ name: "chat", retry: () => runChatStream(userText) })
       return
@@ -164,6 +179,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     if (!ok) return
     pending.current = null
     setBusy(false)
+    setPhase({ label: "语音合成", since: Date.now() })
+    queue().enqueue(() => postTts(reply).then(b => {
+      setPhase(null)
+      return b
+    }))
   }
 
   async function runChat(mode: "simplify" | "hint") {
@@ -258,7 +278,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
             {b.text}
           </div>
         ))}
-        {busy && <p className="muted">思考中…</p>}
+        {phase && (
+          <p className="muted" aria-live="polite">
+            {phase.label}中… {((Date.now() - phase.since) / 1000).toFixed(0)}s
+          </p>
+        )}
+        {busy && !phase && <p className="muted">处理中…</p>}
         {failed && (
           <div className="card">
             <span className="muted">{stepLabel[failed.name]}失败</span>{" "}
