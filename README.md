@@ -93,6 +93,9 @@ Next.js 全栈（薄路由 → services 业务层 → json-store 存储）
 
 ## FAQ
 
+**Q：没有 GPU 能用吗？**
+不能。语音与对话均需真实服务：语音需本地 GPU（ai-server），对话需任一 OpenAI 兼容厂商 Key。
+
 **Q：API Key 会被上传或泄露吗？**
 不会。Key 只存在本地 `.env`（gitignore 覆盖），对话请求从你的机器直达厂商。
 
