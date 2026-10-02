@@ -8,6 +8,7 @@ export default function Nav() {
   const links = [
     { href: "/scenarios", label: "场景" },
     { href: "/vocab", label: "生词本" },
+    { href: "/settings", label: "设置" },
   ]
   return (
     <nav className="nav" aria-label="主导航">
