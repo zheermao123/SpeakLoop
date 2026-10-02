@@ -249,7 +249,7 @@ export async function getTTS(): Promise<TTSProvider> {
 }
 ```
 
-`app/api/tts/route.ts`：`const { text, speaker } = await req.json()` 后合成调用改为 `synthesize(text, { speaker: speaker ?? cfg.tts.speaker })`（`cfg` 由 `resolveConfig()` 取得）。
+`app/api/tts/route.ts`：`const { text, speaker } = await req.json()` 后合成调用改为 `synthesize(text, { speaker: speaker ?? cfg.tts.speaker })`（`cfg` 由 `resolveConfig()` 取得）。（fast-follow 观察项：路由与工厂各自 `resolveConfig` 重复解析，可改为工厂接受可选 cfg 注入去重——非本任务范围。）
 
 - [ ] **Step 2: 测试更新（providers-factory.test.ts）**
 
@@ -271,11 +271,23 @@ it("存储层覆盖 env：工厂读取设置页配置", async () => {
   writeFileSync(path.join(process.env.DATA_DIR!, "config.json"), JSON.stringify({ stt: { baseUrl: "http://127.0.0.1:8100" } }))
   const { getSTT } = await freshTypes()
   const stt = await getSTT()
-  expect(stt.constructor.name).toBe("Qwen3LocalStt")
+  expect((stt as unknown as { baseUrl: string }).baseUrl).toBe("http://127.0.0.1:8100")
 })
 ```
 
-（文件头部补 `writeFileSync`/`path` import 与 DATA_DIR beforeEach——沿用 config.test 的环境模板；"未配置 provider 抛出指引"用例的错误消息断言同步为新文案。）
+（文件头部补 `writeFileSync`/`path` import 与 DATA_DIR beforeEach——沿用 config.test 的环境模板。**裁定溯源 2026-10-02 pre-flight**：新语义下 env 未配置时 STT/TTS/Chat 均落默认 provider 值（不再抛错）——原"未配置 provider 抛出指引"用例**整体替换**为显式未知值版本：）
+
+```ts
+it("未知 provider 抛出配置指引", async () => {
+  process.env.STT_PROVIDER = "foo"
+  process.env.TTS_PROVIDER = "foo"
+  process.env.CHAT_PROVIDER = "foo"
+  const { getSTT, getChat, getTTS } = await freshTypes()
+  await expect(getSTT()).rejects.toThrow("qwen3-local")
+  await expect(getChat()).rejects.toThrow("openai-compatible")
+  await expect(getTTS()).rejects.toThrow("qwen3-local")
+})
+```
 
 - [ ] **Step 3: 全量回归**
 
@@ -354,7 +366,7 @@ it("PUT apiKey 留空保持原值", async () => {
   const r = await put({ chat: { model: "m2", apiKey: "" } })
   const j = await r.json()
   expect(j.chat.model).toBe("m2")
-  expect(j.chat.apiKey).toEqual({ configured: true, tail: "123" })
+  expect(j.chat.apiKey).toEqual({ configured: true, tail: "p123" })
 })
 
 it("非法 provider 返回 400", async () => {
@@ -445,6 +457,11 @@ import path from "node:path"
 import { beforeEach, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
 
+vi.mock("@/lib/providers/chat/openai-compatible", async () => {
+  const { FakeChatProvider } = await import("./fixtures/fake-providers")
+  return { OpenAICompatibleChatProvider: FakeChatProvider }
+})
+
 beforeEach(() => {
   process.env.DATA_DIR = mkdtempSync(path.join(os.tmpdir(), "sl-tst-"))
   for (const k of ["CHAT_PROVIDER", "CHAT_BASE_URL", "CHAT_API_KEY", "CHAT_MODEL", "STT_BASE_URL", "TTS_BASE_URL"]) delete process.env[k]
@@ -469,10 +486,6 @@ it("chat 未配置：ok=false 且带指引消息", async () => {
 })
 
 it("chat 已配置（vi.mock 假件）：ok=true 带 detail 与耗时", async () => {
-  vi.mock("@/lib/providers/chat/openai-compatible", async () => {
-    const { FakeChatProvider } = await import("./fixtures/fake-providers")
-    return { OpenAICompatibleChatProvider: FakeChatProvider }
-  })
   writeFileSync(path.join(process.env.DATA_DIR!, "config.json"), JSON.stringify({
     chat: { provider: "openai-compatible", baseUrl: "https://api.x.com", apiKey: "sk-1", model: "m" },
   }))
@@ -481,7 +494,6 @@ it("chat 已配置（vi.mock 假件）：ok=true 带 detail 与耗时", async ()
   expect(j.ok).toBe(true)
   expect(j.detail.length).toBeGreaterThan(0)
   expect(j.ms).toBeGreaterThanOrEqual(0)
-  vi.unmock("@/lib/providers/chat/openai-compatible")
 })
 
 it("stt 不可达：ok=false", async () => {

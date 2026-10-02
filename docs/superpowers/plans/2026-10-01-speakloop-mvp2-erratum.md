@@ -79,3 +79,26 @@ prompts 断言更新（新规则文本）；计数不变，终态 76 passed。
 ### 6.5 工具链待办（流程项，非文档）
 
 - 评审包 diff 工件字符损坏（MVP-1 起复发，homoglyph 乱码）——**下次阶段前修复生成器**，否则影响后续评审效率
+## 七、MVP-2.1 设计侧清算（2026-10-02，源自台账 118-126 行）
+
+执行方完成全部 7 任务（90/90 + typecheck 0 + build 绿）；Final Review 裁定 With fixes → 用户裁决 DO NOT FIX（连续第 4 次），记录在案。
+
+### 7.1 计划勘误（今日落盘 mvp21-settings.md）
+
+| # | 内容 | 修正 |
+|---|---|---|
+| A1 | T2 存储层覆盖用例 `constructor.name` 断言过弱（RED 不可失败） | 改为实例 `baseUrl` 断言（ `(stt as unknown as {baseUrl}).baseUrl` ） |
+| A2 | T3 测试字面量 `tail: "123"` | 实际 `slice(-4)` = `"p123"`（key=sk-keep123），裁定同步 |
+| A3 | T4 用例内 `vi.mock` 在 vitest 2.1.9 不可用（仅文件顶 hoist） | 移至文件顶；未配置用例不受影响（throw 先于构造） |
+| A4 | T2 `/api/tts` 双重 `resolveConfig` | fast-follow 观察项注记（工厂可选 cfg 注入去重） |
+| A5 | pre-flight 裁定：新语义下 unset env 落默认值不再抛错 | "未配置抛指引"用例整体替换为显式未知 provider 版本 + 溯源注记 |
+
+### 7.2 设计裁定（→ spec §7.4 fast-follow F5）
+
+- **F5-1** 空串 baseUrl 突破校验（Important）：出现即 400，修 `if (u && ...)` 空串旁路
+- **F5-2** warmup env-only 门控脱节配置层（Important）：改读 resolveConfig
+- **F5-3** 探针测已保存值（UX 陷阱）：文案注明 + chat 探针超时
+
+### 7.3 Minor 台账（累计）
+
+sttProvider 标签绕过配置层（设置页用户记 `mock`）；chat 探针无超时；test 路由 `req.json` 在 try 外 + 未知 target 落 tts 分支；settings 加载无 r.ok（违反计划 UI 不变量）；save 错误提取假定 JSON；测试按钮无 in-flight 禁用；maskKey ≤4 位键全泄漏；readStored 静默吞坏 JSON；T3 未测 400 空串/非法前缀路径
