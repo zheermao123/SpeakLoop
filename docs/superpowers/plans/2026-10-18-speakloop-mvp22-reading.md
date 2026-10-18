@@ -102,6 +102,8 @@ export function tokenizeWords(text: string): WordToken[] {
 - Produces: `interface DictEntry { word; phonetic; pos; meaning; example; createdAt }`（word 存小写键）；`lookupWord(word, sentence?, chat?)`——缓存命中不调 LLM；未命中调 ChatProvider（prompt 输出 JSON phonetic(IPA)/pos(词性缩写)/meaning(简明中文释义)/example(语境英文例句)，容错解析剥围栏+截取大括号+默认值兜底）后原子落盘
 - Route: `POST /api/dictionary {word, sentence?}` → 200 entry；400 缺 word；502 `{error}` 上游失败
 
+（勘误清算 2026-10-18：**首查固化语义**——缓存键仅 word，命中即返；example 例句语境以**首次查询的 sentence** 为准，跨语境不复算（用户裁定 DO-NOT-FIX，单用户学习场景可接受）。）
+
 - [ ] **Step 1: 写失败测试** `tests/dictionary.test.ts`：
 
 ```ts
@@ -330,7 +332,7 @@ export async function POST(req: NextRequest) {
 **Interfaces:**
 - `SpeakButton { onSpeak: () => void; label?: string; disabled?: boolean }`——`.icon-btn`（44px 命中区）+ SpeakerHigh size=16 aria-hidden；按钮 aria-label（默认「朗读」）
 - `WordText { text; onWordClick?: (word: string, el: HTMLSpanElement) => void; activeWord?: string }`——tokenize 渲染；词 span `role="button"` `tabIndex={-1}` `aria-label={查询 X}` `className="word-chip"`（activeWord 命中加 active）
-- `DictPopover { word; sentence; anchor: DOMRect; onClose; sessionId? }`——挂载即 fetch /api/dictionary（loading/error(重试，attempt 计数重发)/ready）；ready 态展示 word+phonetic+pos(chip)+meaning+example + 「加入生词本」按钮（POST /api/vocab status=new，成功态「已在生词本」disabled，失败可重试）；`position:fixed` 定位于 anchor.bottom+8、左缘 clamp `min(anchor.left, innerWidth-300)`；Esc/外点 mousedown 关闭（word-chip 内点击除外）；`role="dialog"` aria-label
+- `DictPopover { word; sentence; anchor: DOMRect; onClose; sessionId? }`——挂载即 fetch /api/dictionary（loading/error(重试，attempt 计数重发)/ready）；ready 态展示 word+phonetic+pos(chip)+meaning+example + 「加入生词本」按钮（POST /api/vocab status=new，成功态「已在生词本」disabled，失败可重试）；`position:fixed` 定位于 anchor.bottom+8、左缘 clamp `min(anchor.left, innerWidth-300)`；Esc/外点 mousedown 关闭（word-chip 内点击除外）；`role="dialog"` aria-label（勘误清算 2026-10-18：垂直定位无底边翻转——视口底部可能溢出，用户裁定 DO-NOT-FIX。）
 
 - [ ] **Step 1: 实现三组件**（按上述契约，无注释）
 - [ ] **Step 2: 门禁** — `npm test` 112 不变 / typecheck 0 / build 绿
@@ -346,7 +348,7 @@ export async function POST(req: NextRequest) {
 **Interfaces:**
 - 页面级状态：`const [dict, setDict] = useState<{ word: string; sentence: string; anchor: DOMRect } | null>(null)`；`const [zhMap, setZhMap] = useState<Record<string, string>>({})`（键=气泡原文）；悬停计时器 useRef
 - `onWordClick(word, el)`：`setDict({ word, sentence: <该气泡或 persona 英文全文>, anchor: el.getBoundingClientRect() })`
-- `ensureZh(text)`：zhMap 已有则跳过；否则 setZhMap 占位「翻译中…」→ `POST /api/translate` → r.ok 检查 → 写入 zhMap（失败写「（翻译失败）」并保留重试可能）
+- `ensureZh(text)`：zhMap 已有则跳过；否则 setZhMap 占位「翻译中…」→ `POST /api/translate` → r.ok 检查 → 写入 zhMap（失败写「（翻译失败）」——**勘误清算 2026-10-18：守卫已占槽使重试实际不可行（需刷新页面再试）；原写「保留重试可能」与实现矛盾，按实修正（用户裁定 DO-NOT-FIX）**）
 - persona 行：`<WordText text={scenario.persona} onWordClick={...} activeWord={dict?.word} />` + SpeakButton（`postTts(scenario.persona)`，label=朗读角色设定）
 - AI 气泡：文本区 WordText + `bubble-actions` 行（SpeakButton 朗读本句 / 「译」Translate 图标按钮 → ensureZh）；气泡容器 `onMouseEnter` 起 300ms 计时器 → ensureZh，`onMouseLeave` 清除；`zhMap[b.text]` 存在时渲染 `.zh-line`（标签「译文」+内容）
 - 教练/用户气泡不动；popover 渲染于页面根部 `{dict && <DictPopover ... sessionId={session?.id} onClose={() => setDict(null)} />}`

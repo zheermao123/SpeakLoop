@@ -132,6 +132,7 @@ interface Scenario {
   id: string
   title: string                    // 中文标题，如"周会汇报"
   persona: string                  // AI 角色设定（英文，喂给 system prompt）
+  personaZh?: string               // persona 的忠实中文翻译（双语展示主显行；内置种子 seed-sync 自愈回填；2026-10-18 增补记录）
   goals: string[]                  // 本场景练习目标（英文），驱动进度条
   difficulty: 'easy' | 'medium' | 'hard'
   builtin: boolean
@@ -248,7 +249,7 @@ interface VocabWord {
 ### 6.5 场景管理
 
 - 内置 4 个：英文面试、周会汇报、向上沟通（manager 1:1）、同事寒暄 small talk
-- 自定义：自然语言描述 → ChatProvider 生成 `{title, persona, goals, difficulty}` → **预览+可编辑** → 确认入库
+- 自定义：自然语言描述 → ChatProvider 生成 `{title, persona, personaZh, goals, difficulty}` → **预览+可编辑** → 确认入库（勘误清算 2026-10-18：personaZh 同产；personaZh 上线前创建的自定义场景仅英文展示、无编辑入口——重建 AI 草稿可得双语文案）
 
 ### 6.6 延迟预算
 
@@ -270,7 +271,7 @@ MVP 对策（均已纳入）：文字先显 + TTS 异步播放（感知延迟≈
 - **悬停翻译**：300ms 悬停 → 元素下方持久「译文」行（整段粒度，一经获取持续显示）；触屏等价=「译」按钮；**含中文段跳过翻译**（不显译入口、悬停不触发；播报与分词照常）
 - **逐词词典**：英文按词渲染可点 → popover（音标/词性/简明中文释义/贴合语境英文例句）+ **「加入生词本」**（new 状态直入既有生词闭环）；Esc/外点关闭、点词切换、全局单开
 - **persona 特别约定**：personaZh 常显中文（用户裁定 2026-10-18——常显优于悬停，不补悬停接口）
-- **数据与成本**：翻译/词意经已配置 LLM 生成，按句/按词**持久缓存**（`data/translations.json`、`data/dictionary.json`，gitignore 覆盖）——同句同词全局仅一次生成成本
+- **数据与成本**：翻译/词意经已配置 LLM 生成，按句/按词**持久缓存**（`data/translations.json`、`data/dictionary.json`，gitignore 覆盖）——同句同词全局仅一次生成成本；**词条按 word 键首查固化**——例句语境以首次查询为准，跨语境不复算（勘误清算 2026-10-18，DO-NOT-FIX）
 - **会话无关**：新建与历史会话进入页面即生效
 - **硬规则**：触屏等价入口、Phosphor 图标 + aria、点击区 ≥44px、无 emoji、claymorphism token；已知小项：混合文本整段送 TTS（中文由多语模型朗读），实机不自然后再列 fast-follow
 ## 7. ai-server 本地部署
