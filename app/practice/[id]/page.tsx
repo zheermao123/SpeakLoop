@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react"
 import DictPopover from "@/components/DictPopover"
 import Recorder from "@/components/Recorder"
 import SpeakButton from "@/components/SpeakButton"
+import VoiceStatus, { useVoiceProbes } from "@/components/VoiceStatus"
 import WordText from "@/components/WordText"
 import { AudioQueue } from "@/lib/audio-queue"
 import { Scenario, Session, Turn } from "@/lib/domain/types"
@@ -36,6 +37,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const audioQueue = useRef<AudioQueue | null>(null)
   const [phase, setPhase] = useState<{ label: string; since: number } | null>(null)
   const [, setTick] = useState(0)
+  const { sttLoading, ttsLoading } = useVoiceProbes()
   useEffect(() => {
     if (!phase) return
     const id = setInterval(() => setTick(t => t + 1), 500)
@@ -317,6 +319,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
             </div>
           ))}
         </div>
+        <VoiceStatus />
         {ttsDown && <span className="chip">语音服务离线（文字模式）</span>}
       </div>
       <div style={{ minHeight: 200 }}>
@@ -358,6 +361,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         {phase && (
           <p className="muted" aria-live="polite">
             {phase.label}中… {((Date.now() - phase.since) / 1000).toFixed(0)}s
+            {phase.label === "语音识别" && sttLoading ? "（模型预热中）" : null}
+            {phase.label === "语音合成" && ttsLoading ? "（模型预热中）" : null}
           </p>
         )}
         {busy && !phase && <p className="muted">处理中…</p>}
