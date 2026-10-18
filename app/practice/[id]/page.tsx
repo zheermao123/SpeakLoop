@@ -30,6 +30,21 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [dict, setDict] = useState<{ word: string; sentence: string; anchor: DOMRect } | null>(null)
   const [zhMap, setZhMap] = useState<Record<string, string>>({})
   const [zhShown, setZhShown] = useState<string | null>(null)
+  const [speakStatus, setSpeakStatus] = useState<{ key: string; phase: "synth" | "play"; since: number } | null>(null)
+
+  function speakNow(key: string, text: string) {
+    setSpeakStatus({ key, phase: "synth", since: Date.now() })
+    queue().enqueue(() => postTts(text), {
+      onSynthDone: () =>
+        setSpeakStatus(prev => (prev && prev.key === key && prev.phase === "synth" ? { key, phase: "play", since: Date.now() } : prev)),
+      onSettle: () => setSpeakStatus(prev => (prev && prev.key === key ? null : prev)),
+    })
+  }
+
+  function speakStatusOf(key: string): { phase: "synth" | "play"; seconds: number } | null {
+    if (!speakStatus || speakStatus.key !== key) return null
+    return { phase: speakStatus.phase, seconds: Math.floor((Date.now() - speakStatus.since) / 1000) }
+  }
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current)
@@ -40,10 +55,10 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [, setTick] = useState(0)
   const { sttLoading, ttsLoading } = useVoiceProbes()
   useEffect(() => {
-    if (!phase) return
+    if (!phase && !(speakStatus && speakStatus.phase === "synth")) return
     const id = setInterval(() => setTick(t => t + 1), 500)
     return () => clearInterval(id)
-  }, [phase])
+  }, [phase, speakStatus])
   function queue(): AudioQueue {
     if (!audioQueue.current) {
       audioQueue.current = new AudioQueue(async buf => {
@@ -307,7 +322,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
           <div style={{ flex: 1 }} className="muted">
             <WordText text={scenario.persona} onWordClick={handleWordClick(scenario.persona)} activeWord={dict?.word} />
           </div>
-          <SpeakButton onSpeak={() => queue().enqueue(() => postTts(scenario.persona))} label="朗读角色设定" />
+          <SpeakButton onSpeak={() => speakNow("persona", scenario.persona)} label="朗读角色设定" status={speakStatusOf("persona")} />
         </div>
         <div className="mt-2" role="list" aria-label="练习目标进度">
           <div className="muted">已完成 {goalProgress.length}/{scenario.goals.length}</div>
@@ -324,7 +339,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                 ? <CheckCircle size={18} weight="fill" aria-hidden="true" />
                 : <Circle size={18} aria-hidden="true" />}{" "}
               {i}. <WordText text={g} onWordClick={handleWordClick(g)} activeWord={dict?.word} />
-              <SpeakButton onSpeak={() => queue().enqueue(() => postTts(g))} label={`朗读目标 ${i}`} />
+              <SpeakButton onSpeak={() => speakNow(`goal-${i}`, g)} label={`朗读目标 ${i}`} status={speakStatusOf(`goal-${i}`)} />
               {zhShown === g && zhMap[g] && <div className="zh-line"><span className="zh-label">译文</span>{zhMap[g]}</div>}
             </div>
           ))}
@@ -345,11 +360,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
             >
               <WordText text={b.text} onWordClick={handleWordClick(b.text)} activeWord={dict?.word} />
               <div className="bubble-actions">
-                <SpeakButton
-                  onSpeak={() => queue().enqueue(() => postTts(b.text))}
-                  label="朗读本句"
-                  disabled={speakingNow}
-                />
+                <SpeakButton onSpeak={() => speakNow(`bubble-${i}`, b.text)} label="朗读本句" disabled={speakingNow} status={speakStatusOf(`bubble-${i}`)} />
                 {canTranslate && (
                   <button
                     type="button"
