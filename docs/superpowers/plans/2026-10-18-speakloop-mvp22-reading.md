@@ -350,7 +350,7 @@ export async function POST(req: NextRequest) {
 - `onWordClick(word, el)`：`setDict({ word, sentence: <该气泡或 persona 英文全文>, anchor: el.getBoundingClientRect() })`
 - `ensureZh(text)`：zhMap 已有则跳过；否则 setZhMap 占位「翻译中…」→ `POST /api/translate` → r.ok 检查 → 写入 zhMap（失败写「（翻译失败）」——**勘误清算 2026-10-18：守卫已占槽使重试实际不可行（需刷新页面再试）；原写「保留重试可能」与实现矛盾，按实修正（用户裁定 DO-NOT-FIX）**）
 - persona 行：`<WordText text={scenario.persona} onWordClick={...} activeWord={dict?.word} />` + SpeakButton（`postTts(scenario.persona)`，label=朗读角色设定）
-- AI 气泡：文本区 WordText + `bubble-actions` 行（SpeakButton 朗读本句 / 「译」Translate 图标按钮 → ensureZh）；气泡容器 `onMouseEnter` 起 300ms 计时器 → ensureZh，`onMouseLeave` 清除；`zhMap[b.text]` 存在时渲染 `.zh-line`（标签「译文」+内容）
+- AI 气泡：文本区 WordText + `bubble-actions` 行（SpeakButton 朗读本句 / 「译」Translate 图标按钮 → ensureZh）；气泡容器 `onMouseEnter` 起 300ms 计时器 → ensureZh，`onMouseLeave` 清除；`zhMap[b.text]` 存在时渲染 `.zh-line`（标签「译文」+内容）（2026-10-18 修订 F3：显示改由 `zhShown` 槽位门控——悬停现/离开隐/复悬停即时；「译」按钮为切换语义——见 `2026-10-18-speakloop-translation-fixes.md`）
 - 教练/用户气泡不动；popover 渲染于页面根部 `{dict && <DictPopover ... sessionId={session?.id} onClose={() => setDict(null)} />}`
 
 - [ ] **Step 1: 实现接线**（手术式最小改动）
@@ -412,7 +412,7 @@ export async function POST(req: NextRequest) {
 
 - [ ] **Step 2: README 功能特性追加一条**：`对话阅读增强：角色设定与 AI 回复一键朗读；AI 回复悬停/点「译」显示中文；英文逐词点击查词意并可直接加入生词本`
 - [ ] **Step 3: 全量门禁** — **112 passed** / typecheck 0 / build 绿
-- [ ] **Step 4: 手动走查清单**（浏览器）：persona 行朗读出声；AI 气泡朗读；悬停 300ms 出译文、zh-line 持久；「译」按钮触屏等价；点词出菜单（音标/词性/释义/例句）；加入生词本 → /vocab 可见；Esc/外点关闭；历史会话进入同样生效；语音服务停机时播报走离线降级不阻断
+- [ ] **Step 4: 手动走查清单**（浏览器）：persona 行朗读出声；AI 气泡朗读；悬停 300ms 出译文、鼠标离开即隐、复悬停即时；「译」按钮触屏切换；点词出菜单（音标/词性/释义/例句）；加入生词本 → /vocab 可见；Esc/外点关闭；历史会话进入同样生效；语音服务停机时播报走离线降级不阻断
 - [ ] **Step 5: Commit** — `git add app/globals.css README.md` → `feat: reading enhancement styles and readme`
 
 

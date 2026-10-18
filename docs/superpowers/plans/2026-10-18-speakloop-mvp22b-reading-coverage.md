@@ -130,7 +130,7 @@ export function hasCjk(text: string): boolean {
 Run: `npm test`（113）→ `npm run typecheck` → `npm run build`
 
 手动走查清单（浏览器）：
-1. user 气泡（自己的句子）：喇叭可点播报、单词可点出词意菜单、纯英文句悬停出译文
+1. user 气泡（自己的句子）：喇叭可点播报、单词可点出词意菜单、纯英文句悬停出译文（离开即隐，F3 修订）
 2. coach 气泡（点「听不懂」「提示」触发）：同上三件套
 3. coach 中文段（hint 的"提示：…"中文说明部分）：**无「译」按钮、悬停不出译文**，播报与分词照常
 4. AI 气泡与 goals：回归不变（悬停/译按钮/译文行/查词/加生词本）
