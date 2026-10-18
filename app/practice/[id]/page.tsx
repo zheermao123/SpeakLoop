@@ -1,9 +1,12 @@
 "use client"
 
-import { CheckCircle, Circle } from "@phosphor-icons/react"
+import { CheckCircle, Circle, Translate } from "@phosphor-icons/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
+import DictPopover from "@/components/DictPopover"
 import Recorder from "@/components/Recorder"
+import SpeakButton from "@/components/SpeakButton"
+import WordText from "@/components/WordText"
 import { AudioQueue } from "@/lib/audio-queue"
 import { Scenario, Session, Turn } from "@/lib/domain/types"
 
@@ -22,6 +25,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [ttsDown, setTtsDown] = useState(false)
   const [failed, setFailed] = useState<Step | null>(null)
   const [keyboard, setKeyboard] = useState("")
+  const [dict, setDict] = useState<{ word: string; sentence: string; anchor: DOMRect } | null>(null)
+  const [zhMap, setZhMap] = useState<Record<string, string>>({})
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current)
+  }, [])
   const pending = useRef<{ turnId?: string; audioUrl?: string; userText: string; sttProvider?: string } | null>(null)
   const audioQueue = useRef<AudioQueue | null>(null)
   const [phase, setPhase] = useState<{ label: string; since: number } | null>(null)
@@ -64,6 +73,28 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     } catch {
       setTtsDown(true)
       return null
+    }
+  }
+
+  function handleWordClick(sentence: string) {
+    return (word: string, el: HTMLSpanElement) => {
+      setDict({ word, sentence, anchor: el.getBoundingClientRect() })
+    }
+  }
+
+  async function ensureZh(text: string) {
+    if (zhMap[text]) return
+    setZhMap(prev => ({ ...prev, [text]: "翻译中…" }))
+    try {
+      const r = await fetch("/api/translate", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      })
+      if (!r.ok) throw new Error(`翻译失败 (${r.status})`)
+      const j = await r.json()
+      setZhMap(prev => ({ ...prev, [text]: j.translation }))
+    } catch (e) {
+      setZhMap(prev => ({ ...prev, [text]: (e as Error).message }))
     }
   }
 
@@ -259,7 +290,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       <div className="card">
         <b>{scenario.title}</b>
         {scenario.personaZh && <div>{scenario.personaZh}</div>}
-        <div className="muted">{scenario.persona}</div>
+        <div className="row" style={{ alignItems: "flex-start" }}>
+          <div style={{ flex: 1 }} className="muted">
+            <WordText text={scenario.persona} onWordClick={handleWordClick(scenario.persona)} activeWord={dict?.word} />
+          </div>
+          <SpeakButton onSpeak={() => queue().enqueue(() => postTts(scenario.persona))} label="朗读角色设定" />
+        </div>
         <div className="mt-2" role="list" aria-label="练习目标进度">
           <div className="muted">已完成 {goalProgress.length}/{scenario.goals.length}</div>
           {scenario.goals.map((g, i) => (
@@ -275,8 +311,26 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       </div>
       <div style={{ minHeight: 200 }}>
         {bubbles.map((b, i) => (
-          <div key={i} className={`bubble ${b.role === "user" ? "bubble-user" : b.role === "ai" ? "bubble-ai" : "bubble-coach"}`}>
-            {b.text}
+          <div
+            key={i}
+            className={`bubble ${b.role === "user" ? "bubble-user" : b.role === "ai" ? "bubble-ai" : "bubble-coach"}`}
+            onMouseEnter={b.role === "ai" && !busy ? () => { hoverTimer.current = setTimeout(() => ensureZh(b.text), 300) } : undefined}
+            onMouseLeave={b.role === "ai" ? () => { if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null } } : undefined}
+          >
+            {b.role === "ai" ? (
+              <>
+                <WordText text={b.text} onWordClick={handleWordClick(b.text)} activeWord={dict?.word} />
+                <div className="bubble-actions">
+                  <SpeakButton onSpeak={() => queue().enqueue(() => postTts(b.text))} label="朗读本句" disabled={busy && i === bubbles.length - 1} />
+                  <button type="button" className="icon-btn" aria-label="显示中文翻译" aria-pressed={!!zhMap[b.text]} onClick={() => ensureZh(b.text)}>
+                    <Translate size={16} weight="regular" aria-hidden="true" />
+                  </button>
+                </div>
+                {zhMap[b.text] && <div className="zh-line"><span className="zh-label">译文</span>{zhMap[b.text]}</div>}
+              </>
+            ) : (
+              b.text
+            )}
           </div>
         ))}
         {phase && (
@@ -315,6 +369,16 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
           </button>
         </div>
       </div>
+      {dict && (
+        <DictPopover
+          key={`${dict.word}|${dict.sentence}`}
+          word={dict.word}
+          sentence={dict.sentence}
+          anchor={dict.anchor}
+          sessionId={session?.id}
+          onClose={() => setDict(null)}
+        />
+      )}
     </div>
   )
 }
