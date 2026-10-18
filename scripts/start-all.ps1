@@ -35,7 +35,8 @@ if (-not (Test-Url "http://127.0.0.1:8101/health")) {
     -RedirectStandardError (Join-Path $logDir "tts.err")
 }
 
-if (-not (Test-Url "http://localhost:3000/api/scenarios")) {
+$nextWasDown = -not (Test-Url "http://localhost:3000/api/scenarios")
+if ($nextWasDown) {
   if (-not (Test-Path (Join-Path $root ".next\BUILD_ID"))) {
     Push-Location $root
     npm run build 2>&1 | Out-File (Join-Path $logDir "build.log") -Encoding utf8
@@ -66,6 +67,6 @@ if (-not $nextUp -and -not $Silent) {
   $shell.Popup("SpeakLoop 启动超时，请查看 logs\ 目录日志。", 8, "SpeakLoop", 16) | Out-Null
 }
 
-if ($nextUp -and -not $NoBrowser) {
+if ($nextUp -and -not $NoBrowser -and $nextWasDown) {
   Start-Process "http://localhost:3000"
 }
