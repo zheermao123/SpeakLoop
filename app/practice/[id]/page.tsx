@@ -299,11 +299,20 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         <div className="mt-2" role="list" aria-label="练习目标进度">
           <div className="muted">已完成 {goalProgress.length}/{scenario.goals.length}</div>
           {scenario.goals.map((g, i) => (
-            <div key={i} role="listitem" className={goalProgress.includes(i) ? "goal-done" : ""}>
+            <div
+              key={i}
+              role="listitem"
+              className={goalProgress.includes(i) ? "goal-done" : ""}
+              onMouseEnter={() => { hoverTimer.current = setTimeout(() => ensureZh(g), 300) }}
+              onMouseLeave={() => { if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null } }}
+              onClick={e => { if (!(e.target as HTMLElement).closest(".word-chip")) ensureZh(g) }}
+            >
               {goalProgress.includes(i)
                 ? <CheckCircle size={18} weight="fill" aria-hidden="true" />
                 : <Circle size={18} aria-hidden="true" />}{" "}
-              {i}. {g}
+              {i}. <WordText text={g} onWordClick={handleWordClick(g)} activeWord={dict?.word} />
+              <SpeakButton onSpeak={() => queue().enqueue(() => postTts(g))} label={`朗读目标 ${i}`} />
+              {zhMap[g] && <div className="zh-line"><span className="zh-label">译文</span>{zhMap[g]}</div>}
             </div>
           ))}
         </div>
