@@ -13,3 +13,7 @@ export function tokenizeWords(text: string): WordToken[] {
   if (last < text.length) tokens.push({ type: "text", value: text.slice(last) })
   return tokens
 }
+
+export function hasCjk(text: string): boolean {
+  return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(text)
+}
