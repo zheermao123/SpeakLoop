@@ -49,15 +49,24 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       audioQueue.current = new AudioQueue(async buf => {
         await new Promise<void>(resolve => {
           const a = new Audio(URL.createObjectURL(new Blob([buf], { type: "audio/wav" })))
+          let guard: ReturnType<typeof setTimeout> | null = null
+          const settle = () => {
+            if (guard) clearTimeout(guard)
+            resolve()
+          }
+          guard = setTimeout(() => {
+            setTtsDown(true)
+            settle()
+          }, 60000)
           a.onended = () => {
             URL.revokeObjectURL(a.src)
             setTtsDown(false)
-            resolve()
+            settle()
           }
-          a.onerror = () => resolve()
+          a.onerror = () => settle()
           a.play().catch(() => {
             setTtsDown(true)
-            resolve()
+            settle()
           })
         })
       })
