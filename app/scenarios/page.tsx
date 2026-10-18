@@ -110,7 +110,7 @@ export default function ScenariosPage() {
             <label className="field">AI 角色设定（英文） <span className="req">*</span></label>
             <textarea className="input" rows={2} value={draft.persona}
               onChange={e => setDraft({ ...draft, persona: e.target.value })} />
-            <label className="field">AI 角色描述（中文，选填——留空则显示英文原文）</label>
+            <label className="field">AI 角色设定的中文翻译（选填——留空显示英文原文）</label>
             <textarea className="input" rows={2} value={draft.personaZh ?? ""}
               onChange={e => setDraft({ ...draft, personaZh: e.target.value })} />
             <label className="field">练习目标（每行一个，英文） <span className="req">*</span></label>

@@ -23,14 +23,30 @@ it("内置种子全部带中文角色 personaZh", async () => {
   expect(list.every(s => s.personaZh)).toBe(true)
 })
 
+it("内置种子 personaZh 为英文 persona 的忠实翻译", async () => {
+  const list = await listScenarios()
+  expect(list.find(s => s.id === "builtin-interview")?.personaZh).toBe("你是 Sarah，一家科技公司友好的招聘经理，正在为高级工程师岗位面试学习者。")
+  expect(list.find(s => s.id === "builtin-standup")?.personaZh).toBe("你是主持周会的团队负责人。学习者汇报自己的进展、阻塞与计划。")
+  expect(list.find(s => s.id === "builtin-oneonone")?.personaZh).toBe("你是 Alex，学习者的经理，正在进行一次轻松的一对一谈话。")
+  expect(list.find(s => s.id === "builtin-smalltalk")?.personaZh).toBe("你是 Jamie，来自另一个团队的友好同事，正在办公室咖啡角与学习者闲聊。")
+})
+
 it("旧版内置场景（无 personaZh）自动回填并持久化", async () => {
   await update<Scenario>("scenarios", () => [
     { id: "builtin-interview", title: "英文面试", persona: "You are Sarah.", goals: ["a", "b", "c"], difficulty: "medium", builtin: true },
   ])
   const itv = (await listScenarios()).find(s => s.id === "builtin-interview")!
-  expect(itv.personaZh).toBeTruthy()
+  expect(itv.personaZh).toBe("你是 Sarah，一家科技公司友好的招聘经理，正在为高级工程师岗位面试学习者。")
   const stored = await read<Scenario>("scenarios")
-  expect(stored.find(s => s.id === "builtin-interview")?.personaZh).toBeTruthy()
+  expect(stored.find(s => s.id === "builtin-interview")?.personaZh).toBe("你是 Sarah，一家科技公司友好的招聘经理，正在为高级工程师岗位面试学习者。")
+})
+
+it("内置场景 personaZh 与种子同步（旧文案自动更新）", async () => {
+  await update<Scenario>("scenarios", () => [
+    { id: "builtin-smalltalk", title: "同事寒暄", persona: "You are Jamie.", personaZh: "旧文案", goals: ["a", "b", "c"], difficulty: "easy", builtin: true },
+  ])
+  const itv = (await listScenarios()).find(s => s.id === "builtin-smalltalk")!
+  expect(itv.personaZh).toBe("你是 Jamie，来自另一个团队的友好同事，正在办公室咖啡角与学习者闲聊。")
 })
 
 it("内置场景含英文 persona 与 goals", async () => {
@@ -53,7 +69,7 @@ it("createScenario 支持中文角色 personaZh", async () => {
 it("draftScenario 兜底草稿带中文角色", async () => {
   const d = await draftScenario("和外国客户谈判交期", new FakeChatProvider())
   expect(d.id).toBe("")
-  expect(d.personaZh).toBeTruthy()
+  expect(d.personaZh).toBe(`情景演练：和外国客户谈判交期`)
 })
 
 it("draftScenario 返回未落库草稿（id 为空）", async () => {
