@@ -88,6 +88,7 @@ export default function ScenariosPage() {
         <div key={s.id} className="card row">
           <div style={{ flex: 1 }}>
             <b>{s.title}</b> <span className="chip">{s.difficulty}</span>
+            {s.personaZh && <div>{s.personaZh}</div>}
             <div className="muted">{s.persona}</div>
           </div>
           <button className="btn" disabled={busy} onClick={() => startPractice(s.id)}>开始练习</button>

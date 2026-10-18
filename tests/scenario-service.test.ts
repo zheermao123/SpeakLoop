@@ -2,6 +2,8 @@ import { mkdtempSync } from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { beforeEach, expect, it } from "vitest"
+import { Scenario } from "@/lib/domain/types"
+import { read, update } from "@/lib/store/json-store"
 import { createScenario, draftScenario, getScenario, listScenarios } from "@/lib/services/scenario"
 import { FakeChatProvider } from "./fixtures/fake-providers"
 
@@ -14,6 +16,21 @@ it("listScenarios 首次调用种子 4 个内置场景，幂等", async () => {
   expect(first).toHaveLength(4)
   expect(first.every(s => s.builtin)).toBe(true)
   expect(await listScenarios()).toHaveLength(4)
+})
+
+it("内置种子全部带中文角色 personaZh", async () => {
+  const list = await listScenarios()
+  expect(list.every(s => s.personaZh)).toBe(true)
+})
+
+it("旧版内置场景（无 personaZh）自动回填并持久化", async () => {
+  await update<Scenario>("scenarios", () => [
+    { id: "builtin-interview", title: "英文面试", persona: "You are Sarah.", goals: ["a", "b", "c"], difficulty: "medium", builtin: true },
+  ])
+  const itv = (await listScenarios()).find(s => s.id === "builtin-interview")!
+  expect(itv.personaZh).toBeTruthy()
+  const stored = await read<Scenario>("scenarios")
+  expect(stored.find(s => s.id === "builtin-interview")?.personaZh).toBeTruthy()
 })
 
 it("内置场景含英文 persona 与 goals", async () => {

@@ -258,6 +258,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     <div>
       <div className="card">
         <b>{scenario.title}</b>
+        {scenario.personaZh && <div>{scenario.personaZh}</div>}
         <div className="muted">{scenario.persona}</div>
         <div className="mt-2" role="list" aria-label="练习目标进度">
           <div className="muted">已完成 {goalProgress.length}/{scenario.goals.length}</div>

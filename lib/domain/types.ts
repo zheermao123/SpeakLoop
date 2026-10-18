@@ -2,6 +2,7 @@ export interface Scenario {
   id: string
   title: string
   persona: string
+  personaZh?: string
   goals: string[]
   difficulty: "easy" | "medium" | "hard"
   builtin: boolean
