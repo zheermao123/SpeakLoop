@@ -6,9 +6,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { title, persona, goals, difficulty } = await req.json()
+  const { title, persona, personaZh, goals, difficulty } = await req.json()
   if (!title || !persona || !Array.isArray(goals) || goals.length === 0) {
     return NextResponse.json({ error: "title, persona, non-empty goals required" }, { status: 400 })
   }
-  return NextResponse.json(await createScenario({ title, persona, goals, difficulty: difficulty ?? "medium" }))
+  return NextResponse.json(await createScenario({ title, persona, personaZh: personaZh ?? undefined, goals, difficulty: difficulty ?? "medium" }))
 }

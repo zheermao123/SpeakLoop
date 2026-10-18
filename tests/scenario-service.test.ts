@@ -45,6 +45,17 @@ it("createScenario 保存并可查询", async () => {
   expect((await getScenario(s.id))?.title).toBe("谈判")
 })
 
+it("createScenario 支持中文角色 personaZh", async () => {
+  const s = await createScenario({ title: "谈判", persona: "You are Chris.", personaZh: "AI 扮演 Chris：谈判对手。", goals: ["a", "b"], difficulty: "hard" })
+  expect((await getScenario(s.id))?.personaZh).toBe("AI 扮演 Chris：谈判对手。")
+})
+
+it("draftScenario 兜底草稿带中文角色", async () => {
+  const d = await draftScenario("和外国客户谈判交期", new FakeChatProvider())
+  expect(d.id).toBe("")
+  expect(d.personaZh).toBeTruthy()
+})
+
 it("draftScenario 返回未落库草稿（id 为空）", async () => {
   const d = await draftScenario("和外国客户谈判交期", new FakeChatProvider())
   expect(d.id).toBe("")

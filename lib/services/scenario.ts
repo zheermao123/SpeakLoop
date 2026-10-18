@@ -68,6 +68,7 @@ export async function getScenario(id: string): Promise<Scenario | undefined> {
 export async function createScenario(input: {
   title: string
   persona: string
+  personaZh?: string
   goals: string[]
   difficulty: Scenario["difficulty"]
 }): Promise<Scenario> {
@@ -80,15 +81,17 @@ export async function draftScenario(description: string, chat?: ChatProvider): P
   const provider = chat ?? (await getChat())
   const system =
     "You are a scenario designer for workplace English practice. Output ONLY a JSON object: " +
-    '{"title":string(中文),"persona":string(English role-play setting),"goals":string[](3 English goals),"difficulty":"easy"|"medium"|"hard"}'
+    '{"title":string(中文),"persona":string(English role-play setting),"personaZh":string(同一角色的中文描述),"goals":string[](3 English goals),"difficulty":"easy"|"medium"|"hard"}'
   const raw = await provider.chat(system, [{ role: "user", content: description }])
   let draft: Scenario
   try {
     const j = JSON.parse(raw.replace(/^```(?:json)?\s*|\s*```$/g, ""))
+    const persona = String(j.persona ?? "You are a friendly colleague.")
     draft = {
       id: "",
       title: String(j.title ?? description),
-      persona: String(j.persona ?? "You are a friendly colleague."),
+      persona,
+      personaZh: String(j.personaZh ?? `AI 扮演符合以下设定的角色（中文描述待补）：${persona}`),
       goals: Array.isArray(j.goals) && j.goals.length ? j.goals.map(String) : ["Keep the conversation going"],
       difficulty: j.difficulty === "easy" || j.difficulty === "hard" ? j.difficulty : "medium",
       builtin: false,
@@ -98,6 +101,7 @@ export async function draftScenario(description: string, chat?: ChatProvider): P
       id: "",
       title: `自定义：${description.slice(0, 12)}`,
       persona: `Role-play a workplace scenario: ${description}`,
+      personaZh: `AI 扮演符合以下场景的角色：${description}`,
       goals: ["Open the conversation", "Discuss the main topic", "Wrap up politely"],
       difficulty: "medium",
       builtin: false,

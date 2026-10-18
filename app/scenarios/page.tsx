@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { Scenario } from "@/lib/domain/types"
 
 const emptyDraft: Scenario = {
-  id: "", title: "", persona: "", goals: [], difficulty: "medium", builtin: false,
+  id: "", title: "", persona: "", personaZh: "", goals: [], difficulty: "medium", builtin: false,
 }
 
 export default function ScenariosPage() {
@@ -62,6 +62,7 @@ export default function ScenariosPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: draft.title, persona: draft.persona,
+          personaZh: draft.personaZh?.trim() || undefined,
           goals: goalsText.split("\n").map(s => s.trim()).filter(Boolean),
           difficulty: draft.difficulty,
         }),
@@ -109,6 +110,9 @@ export default function ScenariosPage() {
             <label className="field">AI 角色设定（英文） <span className="req">*</span></label>
             <textarea className="input" rows={2} value={draft.persona}
               onChange={e => setDraft({ ...draft, persona: e.target.value })} />
+            <label className="field">AI 角色描述（中文，选填——留空则显示英文原文）</label>
+            <textarea className="input" rows={2} value={draft.personaZh ?? ""}
+              onChange={e => setDraft({ ...draft, personaZh: e.target.value })} />
             <label className="field">练习目标（每行一个，英文） <span className="req">*</span></label>
             <textarea className="input" rows={3} value={goalsText}
               onChange={e => setGoalsText(e.target.value)} />
