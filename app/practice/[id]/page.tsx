@@ -29,6 +29,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [keyboard, setKeyboard] = useState("")
   const [dict, setDict] = useState<{ word: string; sentence: string; anchor: DOMRect } | null>(null)
   const [zhMap, setZhMap] = useState<Record<string, string>>({})
+  const [zhShown, setZhShown] = useState<string | null>(null)
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current)
@@ -306,16 +307,16 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
               key={i}
               role="listitem"
               className={goalProgress.includes(i) ? "goal-done" : ""}
-              onMouseEnter={() => { hoverTimer.current = setTimeout(() => ensureZh(g), 300) }}
-              onMouseLeave={() => { if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null } }}
-              onClick={e => { if (!(e.target as HTMLElement).closest(".word-chip")) ensureZh(g) }}
+              onMouseEnter={() => { hoverTimer.current = setTimeout(() => { setZhShown(g); ensureZh(g) }, 300) }}
+              onMouseLeave={() => { if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null }; setZhShown(null) }}
+              onClick={e => { if (!(e.target as HTMLElement).closest(".word-chip")) { setZhShown(prev => (prev === g ? null : g)); ensureZh(g) } }}
             >
               {goalProgress.includes(i)
                 ? <CheckCircle size={18} weight="fill" aria-hidden="true" />
                 : <Circle size={18} aria-hidden="true" />}{" "}
               {i}. <WordText text={g} onWordClick={handleWordClick(g)} activeWord={dict?.word} />
               <SpeakButton onSpeak={() => queue().enqueue(() => postTts(g))} label={`朗读目标 ${i}`} />
-              {zhMap[g] && <div className="zh-line"><span className="zh-label">译文</span>{zhMap[g]}</div>}
+              {zhShown === g && zhMap[g] && <div className="zh-line"><span className="zh-label">译文</span>{zhMap[g]}</div>}
             </div>
           ))}
         </div>
@@ -330,8 +331,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
             <div
               key={i}
               className={`bubble ${b.role === "user" ? "bubble-user" : b.role === "ai" ? "bubble-ai" : "bubble-coach"}`}
-              onMouseEnter={canTranslate && !busy ? () => { hoverTimer.current = setTimeout(() => ensureZh(b.text), 300) } : undefined}
-              onMouseLeave={canTranslate ? () => { if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null } } : undefined}
+              onMouseEnter={canTranslate && !busy ? () => { hoverTimer.current = setTimeout(() => { setZhShown(b.text); ensureZh(b.text) }, 300) } : undefined}
+              onMouseLeave={canTranslate ? () => { if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null }; setZhShown(null) } : undefined}
             >
               <WordText text={b.text} onWordClick={handleWordClick(b.text)} activeWord={dict?.word} />
               <div className="bubble-actions">
@@ -345,14 +346,14 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                     type="button"
                     className="icon-btn"
                     aria-label="显示中文翻译"
-                    aria-pressed={!!zhMap[b.text]}
-                    onClick={() => ensureZh(b.text)}
+                    aria-pressed={zhShown === b.text}
+                    onClick={() => { setZhShown(prev => (prev === b.text ? null : b.text)); ensureZh(b.text) }}
                   >
                     <Translate size={16} weight="regular" aria-hidden="true" />
                   </button>
                 )}
               </div>
-              {canTranslate && zhMap[b.text] && (
+              {canTranslate && zhShown === b.text && zhMap[b.text] && (
                 <div className="zh-line"><span className="zh-label">译文</span>{zhMap[b.text]}</div>
               )}
             </div>
