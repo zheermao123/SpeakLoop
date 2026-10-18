@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs"
 import path from "node:path"
 
-export type Collection = "scenarios" | "sessions" | "vocab"
+export type Collection = "scenarios" | "sessions" | "vocab" | "dictionary" | "translations"
 
 function dataDir() {
   return process.env.DATA_DIR ?? path.join(process.cwd(), "data")
