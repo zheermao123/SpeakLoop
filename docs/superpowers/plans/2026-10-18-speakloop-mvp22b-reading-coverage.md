@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- 基线 112；本计划 **+2 → 114**（T1 纯函数 ×2；T2 组件任务不加单测，build+手动验证；两计划合并终态以执行序为准）
+- 基线写作时 112；**实际 +1 → 113**（勘误清算 2026-10-18：T1 hasCjk 为单用例块非 ×2，原 +2 算术有误；T2 组件任务不加单测，build+手动验证）
 - 每任务 `npm test` 全绿 + `npm run typecheck` + `npm run build`
 - **混合文本策略（用户裁定）**：含中文段——跳过翻译（不显「译」按钮、悬停不触发 ensureZh）；播报与逐词照常（中文自然落 text 段不可点，无副作用）
 - persona 零改动（personaZh 常显已在，不补悬停）
@@ -54,7 +54,9 @@ export function hasCjk(text: string): boolean {
 }
 ```
 
-- [ ] **Step 4: 全量门禁** — `npm test` **114** / typecheck 0 / build 绿
+（已知小项（勘误清算 2026-10-18）：纯 CJK 标点文本（如"：。"）不入判定——无害，实际元素不存在纯标点内容。）
+
+- [ ] **Step 4: 全量门禁** — `npm test` **113** / typecheck 0 / build 绿（勘误清算：实测 113）
 
 - [ ] **Step 5: Commit** — `git add lib/word-token.ts tests/word-token.test.ts` → `feat: cjk detector for translation gating`
 
@@ -112,7 +114,7 @@ export function hasCjk(text: string): boolean {
 
 文件顶部按需增补 `import { hasCjk } from "@/lib/word-token"`。
 
-- [ ] **Step 2: globals.css 追加**（user 气泡为深青底白字，需高对比控件样式）
+- [ ] **Step 2: globals.css 追加**（user 气泡为深青底**黑字**——on-primary #000；勘误清算 2026-10-18：原写"白字"系前提错误，白系控件（rgba 0.85）在深青底仍 ≥3:1，按实发货 DO-NOT-FIX）
 
 ```css
 .bubble-user .word-chip { border-bottom-color: rgba(255, 255, 255, 0.5); }
@@ -125,7 +127,7 @@ export function hasCjk(text: string): boolean {
 
 - [ ] **Step 3: 验证**
 
-Run: `npm test`（114）→ `npm run typecheck` → `npm run build`
+Run: `npm test`（113）→ `npm run typecheck` → `npm run build`
 
 手动走查清单（浏览器）：
 1. user 气泡（自己的句子）：喇叭可点播报、单词可点出词意菜单、纯英文句悬停出译文
@@ -159,7 +161,7 @@ npm run typecheck
 npm run build
 ```
 
-Expected: **114 passed / 0 error / build 成功**
+Expected: **113 passed / 0 error / build 成功**（勘误清算：实测 113）
 
 - [ ] **Step 2: 收尾提交**
 

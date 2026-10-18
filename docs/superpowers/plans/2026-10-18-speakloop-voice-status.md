@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- 基线 112；推进 **112→116→119**（T1×4、T2×3）；终态 **119 + typecheck 0 + build 绿**
+- 基线写作时 112；**实际执行序在 22b 之后（基线 113）**：推进 **113→117→120**（T1×4、T2×3）——勘误清算 2026-10-18：两并行计划各按 112 基线写作致计数滑移，组合实况终态 **120 + typecheck 0 + build 绿**
 - 四态判定源为各服务 `/health` 的可达性与 `model_loaded`（不依赖 warmup 请求成败）
 - 超时阈值 **240s**（依据 spike 实测冷载 115-176s，留 35%-100% 余量）
 - 双行分显：STT 行与 TTS 行各自独立状态与计时（两模型加载不同步）
@@ -190,8 +190,10 @@ it("loading 计时显示", () => {
 it("超过阈值升级为 error（240s 默认）", () => {
   expect(lineStatus("loading", 239).level).toBe("loading")
   expect(lineStatus("loading", 240)).toEqual({ level: "error", label: "异常（已 240s）" })
-  expect(lineStatus("loading", 300, 180).label).toBe("异常（已 300s）" })
+  expect(lineStatus("loading", 300, 180).label).toBe("异常（已 300s）")
 })
+
+（勘误清算 2026-10-18：原文本行尾多处一个 `}` 致非法 TS；执行期经最小修复后落地（`b81f299`），上文为修正后文本。）
 ```
 
 - [ ] **Step 2: 运行确认失败**
@@ -217,6 +219,8 @@ export function lineStatus(probe: VoiceProbe, elapsedSec: number, timeoutSec = 2
   return { level: "loading", label: `预热中 · ${elapsedSec}s` }
 }
 ```
+
+（勘误清算 2026-10-18，已知语义混同（用户裁定 DO-NOT-FIX）：`disabled` 复用 `loading` 级——独立 `"disabled"` 级为未来重构候选；当前无实际用户路径（仅 qwen3-local 已配置）。）
 
 - [ ] **Step 4: 运行确认通过**
 
@@ -341,13 +345,15 @@ export default function VoiceStatus() {
 
 - [ ] **Step 4: 验证**
 
-Run: `npm test`（119）→ `npm run typecheck` → `npm run build`
+Run: `npm test`（120）→ `npm run typecheck` → `npm run build`
 
 手动验收（对照四条标准）：
 1. 冷启动开页 → 双行"预热中·Xs"各自跳动（STT 通常先就绪）
-2. 双就绪 → 变绿、轮询停止（Network 面板确认）
-3. 杀 tts-server → ≤10s TTS 行"离线"+恢复指引
+2. 双就绪 → 变绿（**措辞修正 2026-10-18**：轮询在后台持续运行不停止——已知限制，Network 面板仍会见到 10s 间隔请求；UI 无变化）
+3. **预热完成前**杀 tts-server → ≤10s TTS 行"离线"+恢复指引；**预热完成后**杀 → 界面冻结于"就绪"不再更新（已知限制，真实状态以 `npm run doctor` 为准）
 4. 预热期说话 → F4 计时带"（模型预热中）"后缀
+
+**已知缺陷注记（用户裁定 DO-NOT-FIX 2026-10-18，勘误清算）**：①`stopped` 闸门仅冻结状态更新，`setInterval` 未清理（仅卸载时清理）——轮询后台持续，验收 #2 已按实修正措辞；②闸门条件"both non-loading"≠"both ready"——首轮即全非 loading（含 offline）会永久冻结，恢复不可确认、预热完成后服务变化不可见——验收 #3 已限定成立条件；③双轮询：本页 VoiceStatus 组件与 `useVoiceProbes` 钩子并存（2 pollers/10s ≈ 4 上游探针），属有意取径（F4 后缀与双行显示解耦），成本可忽略，记录在案。
 
 - [ ] **Step 5: Commit**
 
@@ -370,7 +376,7 @@ npm run typecheck
 npm run build
 ```
 
-Expected: **119 passed / 0 error / build 成功**
+Expected: **120 passed / 0 error / build 成功**（勘误清算：原写 119——执行序基线 113 而非 112）
 
 - [ ] **Step 2: 收尾提交**
 
