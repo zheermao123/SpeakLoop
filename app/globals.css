@@ -178,6 +178,13 @@ label.field .req { color: var(--color-destructive); }
 .word-chip:hover { border-bottom-color: var(--color-primary); background: var(--color-muted); }
 .word-chip.active { background: var(--color-muted); border-bottom-color: var(--color-primary); }
 
+.bubble-user .word-chip { border-bottom-color: rgba(255, 255, 255, 0.5); }
+.bubble-user .word-chip:hover,
+.bubble-user .word-chip.active { background: rgba(255, 255, 255, 0.2); border-bottom-color: #ffffff; }
+.bubble-user .icon-btn { color: rgba(255, 255, 255, 0.85); }
+.bubble-user .icon-btn:hover { background: rgba(255, 255, 255, 0.2); color: #ffffff; }
+.bubble-coach .word-chip { border-bottom-color: rgba(217, 119, 6, 0.45); }
+
 .zh-line {
   margin-top: var(--space-2);
   padding: var(--space-2) var(--space-3);

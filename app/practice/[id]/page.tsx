@@ -9,6 +9,7 @@ import SpeakButton from "@/components/SpeakButton"
 import WordText from "@/components/WordText"
 import { AudioQueue } from "@/lib/audio-queue"
 import { Scenario, Session, Turn } from "@/lib/domain/types"
+import { hasCjk } from "@/lib/word-token"
 
 type Bubble = { role: "user" | "ai" | "coach"; text: string }
 type Step = { name: "stt" | "chat" | "save"; retry: () => void }
@@ -319,29 +320,41 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         {ttsDown && <span className="chip">语音服务离线（文字模式）</span>}
       </div>
       <div style={{ minHeight: 200 }}>
-        {bubbles.map((b, i) => (
-          <div
-            key={i}
-            className={`bubble ${b.role === "user" ? "bubble-user" : b.role === "ai" ? "bubble-ai" : "bubble-coach"}`}
-            onMouseEnter={b.role === "ai" && !busy ? () => { hoverTimer.current = setTimeout(() => ensureZh(b.text), 300) } : undefined}
-            onMouseLeave={b.role === "ai" ? () => { if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null } } : undefined}
-          >
-            {b.role === "ai" ? (
-              <>
-                <WordText text={b.text} onWordClick={handleWordClick(b.text)} activeWord={dict?.word} />
-                <div className="bubble-actions">
-                  <SpeakButton onSpeak={() => queue().enqueue(() => postTts(b.text))} label="朗读本句" disabled={busy && i === bubbles.length - 1} />
-                  <button type="button" className="icon-btn" aria-label="显示中文翻译" aria-pressed={!!zhMap[b.text]} onClick={() => ensureZh(b.text)}>
+        {bubbles.map((b, i) => {
+          const canTranslate = !hasCjk(b.text)
+          const speakingNow = busy && b.role === "ai" && i === bubbles.length - 1
+          return (
+            <div
+              key={i}
+              className={`bubble ${b.role === "user" ? "bubble-user" : b.role === "ai" ? "bubble-ai" : "bubble-coach"}`}
+              onMouseEnter={canTranslate && !busy ? () => { hoverTimer.current = setTimeout(() => ensureZh(b.text), 300) } : undefined}
+              onMouseLeave={canTranslate ? () => { if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null } } : undefined}
+            >
+              <WordText text={b.text} onWordClick={handleWordClick(b.text)} activeWord={dict?.word} />
+              <div className="bubble-actions">
+                <SpeakButton
+                  onSpeak={() => queue().enqueue(() => postTts(b.text))}
+                  label="朗读本句"
+                  disabled={speakingNow}
+                />
+                {canTranslate && (
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label="显示中文翻译"
+                    aria-pressed={!!zhMap[b.text]}
+                    onClick={() => ensureZh(b.text)}
+                  >
                     <Translate size={16} weight="regular" aria-hidden="true" />
                   </button>
-                </div>
-                {zhMap[b.text] && <div className="zh-line"><span className="zh-label">译文</span>{zhMap[b.text]}</div>}
-              </>
-            ) : (
-              b.text
-            )}
-          </div>
-        ))}
+                )}
+              </div>
+              {canTranslate && zhMap[b.text] && (
+                <div className="zh-line"><span className="zh-label">译文</span>{zhMap[b.text]}</div>
+              )}
+            </div>
+          )
+        })}
         {phase && (
           <p className="muted" aria-live="polite">
             {phase.label}中… {((Date.now() - phase.since) / 1000).toFixed(0)}s
