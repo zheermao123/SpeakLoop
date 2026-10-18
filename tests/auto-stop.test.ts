@@ -66,3 +66,38 @@ it("AUTO_STOP=0 时生产装配不启动", async () => {
   delete process.env.AUTO_STOP
   expect(mod.shouldAutoStop()).toBe(true)
 })
+
+
+it("leave：宽限期内无心跳则停止；期间心跳取消（刷新保护）", async () => {
+  vi.useFakeTimers()
+  const { d, stops } = fakeDeps()
+  const wd = (await import("@/lib/auto-stop")).createWatchdog(d)
+  wd.leave(5000)
+  vi.advanceTimersByTime(4999)
+  expect(stops).toEqual([])
+  wd.beat()
+  vi.advanceTimersByTime(10000)
+  expect(stops).toEqual([])
+  wd.leave(5000)
+  vi.advanceTimersByTime(4999)
+  expect(stops).toEqual([])
+  vi.advanceTimersByTime(1)
+  expect(stops).toHaveLength(1)
+  expect(wd.stopped).toBe(true)
+  vi.useRealTimers()
+})
+
+it("beatAgeMs：未心跳 -1，心跳后返回年龄", async () => {
+  const { d, advance } = fakeDeps()
+  const wd = (await import("@/lib/auto-stop")).createWatchdog(d)
+  expect(wd.beatAgeMs()).toBe(-1)
+  wd.beat()
+  advance(2500)
+  expect(wd.beatAgeMs()).toBe(2500)
+})
+
+it("默认空闲兜底阈值 12s（关闭→立即停靠信标，崩溃兜底 ≤12s）", async () => {
+  delete process.env.AUTO_STOP_IDLE_MS
+  const { idleMsFromEnv } = await import("@/lib/auto-stop")
+  expect(idleMsFromEnv()).toBe(12000)
+})

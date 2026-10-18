@@ -10,16 +10,25 @@ export interface WatchdogDeps {
 export interface Watchdog {
   beat(): void
   tick(): void
+  leave(graceMs: number): void
   readonly armed: boolean
   readonly stopped: boolean
+  beatAgeMs(): number
 }
+
+export const LEAVE_GRACE_MS = 5000
 
 export function createWatchdog(d: WatchdogDeps): Watchdog {
   let last = -1
   let stopped = false
+  let leaveTimer: ReturnType<typeof setTimeout> | null = null
   return {
     beat() {
       last = d.now()
+      if (leaveTimer) {
+        clearTimeout(leaveTimer)
+        leaveTimer = null
+      }
     },
     tick() {
       if (stopped || last < 0) return
@@ -28,11 +37,23 @@ export function createWatchdog(d: WatchdogDeps): Watchdog {
         void d.stop()
       }
     },
+    leave(graceMs: number) {
+      if (stopped) return
+      if (leaveTimer) clearTimeout(leaveTimer)
+      leaveTimer = setTimeout(() => {
+        if (stopped) return
+        stopped = true
+        void d.stop()
+      }, graceMs)
+    },
     get armed() {
       return last >= 0
     },
     get stopped() {
       return stopped
+    },
+    beatAgeMs() {
+      return last < 0 ? -1 : d.now() - last
     },
   }
 }
@@ -43,7 +64,7 @@ export function shouldAutoStop(): boolean {
 
 export function idleMsFromEnv(): number {
   const v = Number(process.env.AUTO_STOP_IDLE_MS)
-  return Number.isFinite(v) && v >= 5000 ? v : 30000
+  return Number.isFinite(v) && v >= 5000 ? v : 12000
 }
 
 function killPort(port: number): Promise<void> {
