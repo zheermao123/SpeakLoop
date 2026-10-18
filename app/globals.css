@@ -158,6 +158,48 @@ label.field .req { color: var(--color-destructive); }
 .stat-accent { color: var(--color-accent); }
 .goal-done { color: var(--color-accent); font-weight: 600; }
 
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+}
+.icon-btn:hover { background: var(--color-muted); color: var(--color-foreground); }
+.icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.word-chip { cursor: pointer; border-bottom: 2px dotted transparent; }
+.word-chip:hover { border-bottom-color: var(--color-primary); background: var(--color-muted); }
+.word-chip.active { background: var(--color-muted); border-bottom-color: var(--color-primary); }
+
+.zh-line {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-muted);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+}
+.zh-line .zh-label { color: var(--color-muted-foreground); margin-right: var(--space-2); font-size: 12px; }
+
+.bubble-actions { display: flex; gap: var(--space-1); margin-top: var(--space-1); }
+
+.popover {
+  z-index: 50;
+  max-width: 280px;
+  padding: var(--space-3);
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+  border: var(--border-thick) solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-inner), var(--shadow-outer);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
