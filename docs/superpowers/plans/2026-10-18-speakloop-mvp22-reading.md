@@ -1,4 +1,4 @@
-# SpeakLoop MVP-2.2 实施计划（对话阅读增强：播报 / 悬停翻译 / 逐词词意）
+﻿# SpeakLoop MVP-2.2 实施计划（对话阅读增强：播报 / 悬停翻译 / 逐词词意）
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans. Steps use checkbox syntax.
 
@@ -412,3 +412,11 @@ export async function POST(req: NextRequest) {
 - [ ] **Step 3: 全量门禁** — **112 passed** / typecheck 0 / build 绿
 - [ ] **Step 4: 手动走查清单**（浏览器）：persona 行朗读出声；AI 气泡朗读；悬停 300ms 出译文、zh-line 持久；「译」按钮触屏等价；点词出菜单（音标/词性/释义/例句）；加入生词本 → /vocab 可见；Esc/外点关闭；历史会话进入同样生效；语音服务停机时播报走离线降级不阻断
 - [ ] **Step 5: Commit** — `git add app/globals.css README.md` → `feat: reading enhancement styles and readme`
+
+
+## 实现漂移与排除注记（2026-10-18 设计侧追记）
+
+1. **goals 超计划实做**：本计划原文仅覆盖 persona 与 AI 气泡；执行方将三件套扩展至 goals 列表（悬停/点非词区译、播报、分词）——方向与用户「全元素无排除」原则一致，予以追认
+2. **coach/user 气泡当时排除原委**：首版聚焦对话主线元素；用户 2026-10-18 裁定全元素覆盖后，由 II 期计划 `2026-10-18-speakloop-mvp22b-reading-coverage.md` 补齐（该计划取代本计划在此两项上的口径）
+3. **persona 翻译方式裁定**：personaZh 常显中文优于悬停（零成本、常驻可见），不补悬停接口
+4. **混合文本策略裁定**：含中文段跳过翻译（播报与分词照常）——见 spec §6.7
