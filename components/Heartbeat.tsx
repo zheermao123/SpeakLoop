@@ -9,7 +9,7 @@ export default function Heartbeat() {
       navigator.sendBeacon("/api/heartbeat/leave")
     }
     beat()
-    const id = setInterval(beat, 5000)
+    const id = setInterval(beat, 2000)
     window.addEventListener("pagehide", leave)
     return () => {
       clearInterval(id)

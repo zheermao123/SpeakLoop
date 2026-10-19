@@ -64,7 +64,7 @@ export function shouldAutoStop(): boolean {
 
 export function idleMsFromEnv(): number {
   const v = Number(process.env.AUTO_STOP_IDLE_MS)
-  return Number.isFinite(v) && v >= 5000 ? v : 12000
+  return Number.isFinite(v) && v >= 5000 ? v : 75000
 }
 
 function killPort(port: number): Promise<void> {

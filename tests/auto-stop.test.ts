@@ -96,8 +96,8 @@ it("beatAgeMs：未心跳 -1，心跳后返回年龄", async () => {
   expect(wd.beatAgeMs()).toBe(2500)
 })
 
-it("默认空闲兜底阈值 12s（关闭→立即停靠信标，崩溃兜底 ≤12s）", async () => {
+it("默认空闲兜底阈值 75s（>强化节流 60s 周期；崩溃收尸最坏 75-80s）", async () => {
   delete process.env.AUTO_STOP_IDLE_MS
   const { idleMsFromEnv } = await import("@/lib/auto-stop")
-  expect(idleMsFromEnv()).toBe(12000)
+  expect(idleMsFromEnv()).toBe(75000)
 })
