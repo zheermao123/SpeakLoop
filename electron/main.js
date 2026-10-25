@@ -193,11 +193,11 @@ function startVoiceServices() {
       {
         env: { ...process.env, SPEAKLOOP_REPO_ROOT: repoRootForScripts() },
         windowsHide: true,
-        detached: true,
         stdio: "ignore",
       },
     )
     proc.on("error", err => console.error("[main] start-all spawn failed:", err.message))
+    proc.on("exit", code => console.log("[main] start-all exited", code))
     proc.unref()
   } catch (err) {
     console.error("[main] start-all failed:", err.message)
