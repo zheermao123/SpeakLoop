@@ -69,6 +69,15 @@ if ($NoNext) {
   } until ($nextUp -or (Get-Date) -gt $deadline)
 }
 
+if ($NoNext) {
+  $voiceDeadline = (Get-Date).AddSeconds(60)
+  do {
+    Start-Sleep -Seconds 2
+    $asrUp = Test-Url "http://127.0.0.1:8100/health"
+    $ttsUp = Test-Url "http://127.0.0.1:8101/health"
+  } until (($asrUp -and $ttsUp) -or (Get-Date) -gt $voiceDeadline)
+}
+
 try {
   Invoke-WebRequest -Uri "http://127.0.0.1:8100/warmup" -Method POST -UseBasicParsing -TimeoutSec 5 | Out-Null
 } catch {}
