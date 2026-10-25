@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react"
 import DictPopover from "@/components/DictPopover"
 import Recorder from "@/components/Recorder"
 import SpeakButton from "@/components/SpeakButton"
-import VoiceStatus, { useVoiceProbes } from "@/components/VoiceStatus"
+import { VoiceBanner, useVoiceProbes } from "@/components/VoiceStatus"
 import WordText from "@/components/WordText"
 import { AudioQueue } from "@/lib/audio-queue"
 import { Scenario, Session, Turn } from "@/lib/domain/types"
@@ -344,7 +344,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
             </div>
           ))}
         </div>
-        <VoiceStatus />
+        <VoiceBanner />
         {ttsDown && <span className="chip">语音服务离线（文字模式）</span>}
       </div>
       <div style={{ minHeight: 200 }}>

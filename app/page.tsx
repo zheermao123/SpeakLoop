@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import VoiceStatus from "@/components/VoiceStatus"
+import { VoiceBanner } from "@/components/VoiceStatus"
 import { Scenario, Session, VocabWord } from "@/lib/domain/types"
 
 export default function Dashboard() {
@@ -48,9 +48,7 @@ export default function Dashboard() {
           {topErrors.map(([t, n]) => <div key={t}>{typeLabel[t] ?? t} × {n}</div>)}
         </div>
       </div>
-      <div className="card">
-        <VoiceStatus />
-      </div>
+      <VoiceBanner />
       <h3>最近练习</h3>
       {sessions.length === 0 && <p className="muted">还没有练习记录，去 <Link href="/scenarios">选一个场景</Link> 开始吧。</p>}
       {sessions.slice(0, 8).map(s => {
