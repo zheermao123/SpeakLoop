@@ -5,7 +5,7 @@ param(
   [switch]$NoBrowser
 )
 $ErrorActionPreference = "Continue"
-$root = Split-Path $PSScriptRoot -Parent
+$root = if ($env:SPEAKLOOP_REPO_ROOT) { $env:SPEAKLOOP_REPO_ROOT } else { Split-Path $PSScriptRoot -Parent }
 $logDir = Join-Path $root "logs"
 New-Item -ItemType Directory -Path $logDir -Force | Out-Null
 $actionLog = Join-Path $logDir "start-all.log"
