@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useVoiceStatus } from "@/lib/use-voice-status"
 
 type ElectronAPI = {
@@ -29,27 +29,26 @@ export default function ExeTitlebar() {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [waking, setWaking] = useState(false)
-  const wakeBaseline = useRef("")
   const voice = useVoiceStatus()
 
   useEffect(() => setMounted(true), [])
 
-  useEffect(() => {
-    if (!waking) return
-    if (`${voice.stt}:${voice.tts}` !== wakeBaseline.current) setWaking(false)
-  }, [waking, voice.stt, voice.tts])
-
-  const wake = () => {
+  async function handlePillClick() {
     const api = getApi()
-    if (api?.restartVoiceServices) {
-      wakeBaseline.current = `${voice.stt}:${voice.tts}`
-      setWaking(true)
-      void Promise.resolve(api.restartVoiceServices())
-        .catch(() => undefined)
-        .finally(() => voice.refresh())
-    } else {
+    if (!api?.restartVoiceServices) {
       voice.refresh()
+      return
     }
+    setWaking(true)
+    try {
+      await Promise.race([
+        Promise.resolve(api.restartVoiceServices()),
+        new Promise<void>(resolve => setTimeout(resolve, 90000)),
+      ])
+    } catch {
+    }
+    voice.refresh()
+    setWaking(false)
   }
 
   const pill = waking
@@ -151,7 +150,7 @@ export default function ExeTitlebar() {
             type="button"
             className="chip no-drag"
             aria-label={pillLabel}
-            onClick={wake}
+            onClick={handlePillClick}
             style={{
               border: 0,
               padding: "6px 12px",
