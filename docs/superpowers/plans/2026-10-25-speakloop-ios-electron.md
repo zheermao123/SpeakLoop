@@ -1,4 +1,4 @@
-# SpeakLoop iOS 化 + Electron EXE 实施计划（一次性合并交付）
+﻿# SpeakLoop iOS 化 + Electron EXE 实施计划（一次性合并交付）
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development 或 executing-plans。步骤用复选框跟踪。
 
@@ -35,6 +35,21 @@
 - Windows 11 目标；无 Tailwind、无组件库
 
 ---
+
+## 交叉评审修正（2026-10-25，副审记录）
+
+外部交叉评审提出 8 项，逐项核验后处置如下（已全部并入上文任务）：
+
+| # | 评审项 | 核验与处置 |
+|---|---|---|
+| B-1 | asar 归档阻断 standalone spawn | ✅ 采纳：T9 设 **`asar:false`**；T8 spawn 显式传 `cwd=standalone 目录` |
+| B-2 | extraResources 路径偏移 + 脚本相对路径失联 | ✅ 采纳：T8 脚本路径按 `isPacked ? process.resourcesPath : app.getAppPath()`；`start-all.ps1` 改造为 **`SPEAKLOOP_REPO_ROOT` 优先**（新增改造任务） |
+| B-3 | "DATA_DIR 未被任何任务读取" | ❌ **驳回（与代码事实不符）**：三处数据路径早已支持 `process.env.DATA_DIR ?? cwd/data`——`lib/store/json-store.ts:7`、`lib/config.ts:19`、`lib/services/practice.ts:59`，注入即生效，无需改造；T8 验收增加实测项（迁移后数据可读）佐证 |
+| B-4 | NSIS 安装后 B6 迁移源必然落空 | ✅ 采纳：T9 构建期写 `electron/build-meta.json {repoRoot}`；T8 迁移探测链改为 `SPEAKLOOP_DATA_SRC → build-meta.repoRoot/data → cwd/data`。**评审未列但同源的第五个坑一并修复**：`.env` 复制至 `userData/.env` 并在 spawn Next 前解析注入（否则安装版 Chat Key/provider 配置丢失） |
+| M-1 | 拖拽区 `onDoubleClick` 不触发 | ✅ 采纳：删除自定义双击 IPC，依赖 Windows 原生（`resizable/maximizable: true`） |
+| M-2 | 红黄绿 SSR/水合不一致 | ✅ 采纳：`useState(false)` + `useEffect` 挂载门控（否则 Hydration Mismatch 将挂掉 console-check 门禁） |
+| M-3 | `.bubble-youser` 笔误；vocab pill 两套类名 | ✅ 采纳：已改 `.bubble-user`；统一组合类 `.vocab-status-pill.<status>` |
+| M-4 | 44px 命中区与小红黄绿/小按钮冲突 | ✅ 采纳（分层执行）：红黄绿=44×44 透明热区包 12px 视觉圆点；`icon-btn` 保持 44；气泡 mini-pill 视觉紧凑、热区 44。注：`acceptance-check.mjs` **并不扫描全部按钮尺寸**（评审假设不成立），但 spec 规则照常执行 |
 
 ## Phase 1 · 基础层
 
@@ -99,12 +114,12 @@ export default { output: "standalone" }
 | `.card` | 白底无边框；radius 18；`--shadow-sm`；padding 18-20；margin-bottom 16 |
 | `.btn` | 胶囊（999）高 44；蓝底白字；`--shadow-sm`；active `scale(.97)`；hover 加深；`--btn-secondary` 灰胶囊 `#E5E5EA`/`#1C1C1E`；`.btn-danger` 红 |
 | `.input/textarea/select` | 白底 + 1px hairline；radius 12；focus 边框 `--ios-blue` |
-| `.bubble-youser/ai/coach` | 模板三色（用户蓝渐变右对齐/尾 6px；AI 白左/尾 6；教练 `#FFF9E6`+`#FFE082` 边 + `#6E3B00` 字）；保留 `.bubble-* .word-chip` 适配（用户气泡白系、教练琥珀系） |
+| `.bubble-user/.bubble-ai/.bubble-coach` | 模板三色（用户蓝渐变右对齐/尾 6px；AI 白左/尾 6；教练 `#FFF9E6`+`#FFE082` 边 + `#6E3B00` 字）；保留 `.bubble-* .word-chip` 适配（用户气泡白系、教练琥珀系） |
 | `.word-chip` | hover 蓝 tint+变蓝（模板 `.clickable-word` 语义） |
 | `.zh-line` | **仅样式**：上虚分割线 13px `--text-secondary`；显隐由 F3 JS（`zhShown`）控制，**禁止添加 `:hover` 显隐选择器** |
 | `.icon-btn` `.chip` `.muted` `.stat` `.goal-done` `.bubble-actions` | 按模板语义微调；`.stat` 32px/700/`--text-primary` |
 | `.popover` | 毛玻璃（`--bg-glass-popover` + blur）、hairline、radius 16、`--shadow-popover`、`z-index: 300` |
-| 新增 | `.exe-titlebar(-inner)` `.no-drag` `.window-traffic-lights` `.traffic-dot{-close,-min,-max}` `.ios-segmented` `.ios-seg-item.active` `.voice-status-banner` `.ios-grouped-list/-row`（缩进分割线伪元素 left:20px） `.goal-list/-row(.done)/-checkbox` `.practice-grid`(310px+1fr) `.practice-left-col`(sticky top 72) `.bubble-stream` `.phase-timer-bar` `.practice-dock`(sticky bottom 玻璃) `.dock-assist-row` `.dock-input-row` `.ios-input` `.record-btn(.is-recording 仅变红，无动画)` `.dict-popover-card` `.vocab-status-pill{,-new,-learning,-mastered,-ignored}` |
+| 新增 | `.exe-titlebar(-inner)` `.no-drag` `.window-traffic-lights` `.traffic-dot{-close,-min,-max}` `.ios-segmented` `.ios-seg-item.active` `.voice-status-banner` `.ios-grouped-list/-row`（缩进分割线伪元素 left:20px） `.goal-list/-row(.done)/-checkbox` `.practice-grid`(310px+1fr) `.practice-left-col`(sticky top 72) `.bubble-stream` `.phase-timer-bar` `.practice-dock`(sticky bottom 玻璃) `.dock-assist-row` `.dock-input-row` `.ios-input` `.record-btn(.is-recording 仅变红，无动画)` `.dict-popover-card` `.vocab-status-pill（组合类：.vocab-status-pill.new/.learning/.mastered/.ignored，与 CSS 模板一致，禁止连字符式 -new）` |
 | 拖拽区 | `.exe-titlebar { -webkit-app-region: drag }`；所有可点击元素加 `.no-drag` |
 
 - [ ] 重写 globals.css 并 `npm run build` 通过（下一步视觉核对）
@@ -120,7 +135,7 @@ export default { output: "standalone" }
 
 **Interfaces:**
 - `useVoiceStatus(): { stt: Probe; tts: Probe; ready: boolean; loading: boolean; busyElapsed: {stt:number;tts:number} }`（10s 轮询 `/api/voice-status`；复用 `lineStatus` 计时语义）
-- 顶栏结构：左（红黄绿三点——**仅 `window.electronAPI?.isDesktopApp` 渲染**，浏览器隐藏；S 方标；SpeakLoop）· 中（`.ios-segmented`：首页 `/` 场景 `/scenarios` 生词本 `/vocab` 设置 `/settings`，`usePathname` 判 active）· 右（**语音胶囊**：就绪绿 tint「语音就绪」/ 预热橙「预热中 · Ns」/ 离线橙「引擎离线 · 一键恢复」；点击：`electronAPI.restartVoiceServices()`，浏览器 fallback 仅刷新状态；唤醒中「正在唤醒…」+ 轮询恢复；**`+ 新练习`** 蓝胶囊 → `/scenarios`）
+- 顶栏结构：左（红黄绿三点——**hydration 安全门控**：`useState(false)` + `useEffect` 挂载后才依据 `window.electronAPI?.isDesktopApp` 渲染（SSR 首屏与服务端一致为空，避免 React 19 Hydration Mismatch 导致 console-check 门禁失败）；每点外层 44×44 透明命中区包裹 12px 视觉圆点；S 方标；SpeakLoop）· 中（`.ios-segmented`：首页 `/` 场景 `/scenarios` 生词本 `/vocab` 设置 `/settings`，`usePathname` 判 active）· 右（**语音胶囊**：就绪绿 tint「语音就绪」/ 预热橙「预热中 · Ns」/ 离线橙「引擎离线 · 一键恢复」；点击：`electronAPI.restartVoiceServices()`，浏览器 fallback 仅刷新状态；唤醒中「正在唤醒…」+ 轮询恢复；**`+ 新练习`** 蓝胶囊 → `/scenarios`）
 
 - [ ] 实现 + layout 接入；`npm run build`；浏览器四页可导航
 - [ ] Commit：`feat: ios titlebar with segmented nav and voice pill`
@@ -163,7 +178,7 @@ export default { output: "standalone" }
 
 **Files:** Modify `app/vocab/page.tsx`；抽查 `app/scenarios/page.tsx`、`app/settings/page.tsx`、`app/report/[id]/page.tsx`
 
-- 生词本：header + `.ios-grouped-list`；行=单词 700 + 释义 + 斜体例句 + 「已使用 N 次 · 上次使用 relativeTime(lastUsedAt)」+ 右侧 `vocab-status-pill {status}` select + 「删除」红 tint 胶囊；**保留全部 fetch/r.ok 逻辑**
+- 生词本：header + `.ios-grouped-list`；行=单词 700 + 释义 + 斜体例句 + 「已使用 N 次 · 上次使用 relativeTime(lastUsedAt)」+ 右侧组合类 `vocab-status-pill.` select（与 Phase 2 定义一致） + 「删除」红 tint 胶囊；**保留全部 fetch/r.ok 逻辑**
 - 其余页继承 token；把残留硬编码色/旧 class 替换为 token（发现一处改一处，不重构）
 
 - [ ] 实现 + 逐页抽查；build
@@ -175,14 +190,14 @@ export default { output: "standalone" }
 
 ### T8: main / preload / 类型 / dev 脚本 / stop-all -Quiet
 
-**Files:** Create `electron/main.js`、`electron/preload.js`、`types/electron.d.ts`、`scripts/electron-dev.mjs`；Modify `scripts/stop-all.ps1`
+**Files:** Create `electron/main.js`、`electron/preload.js`、`types/electron.d.ts`、`scripts/electron-dev.mjs`；Modify `scripts/stop-all.ps1`、`scripts/start-all.ps1`（`SPEAKLOOP_REPO_ROOT` 优先解析仓库根）
 
 `main.js` 契约（模板为底 + 修正项）：
-1. **生产**：`spawn(process.execPath, [path.join(appPath, ".next/standalone/server.js")], { env: {...process.env, ELECTRON_RUN_AS_NODE: "1", PORT: <freePort>, HOSTNAME: "127.0.0.1", DATA_DIR: path.join(app.getPath("userData"), "data"), AUTO_STOP: "0"} })`；端口从 3123 起探测空闲；HTTP 200 后再 `loadURL`
+1. **生产**：`spawn(process.execPath, [path.join(appPath, ".next/standalone/server.js")], { cwd: path.join(appPath, ".next/standalone"), env: {...process.env, ELECTRON_RUN_AS_NODE: "1", PORT: <freePort>, HOSTNAME: "127.0.0.1", DATA_DIR: path.join(app.getPath("userData"), "data"), AUTO_STOP: "0"} })`——**必须显式传 `cwd` 为 standalone 目录**（Next 内部按 cwd 寻址 `.next/static`）；**打包必须 `asar: false`**（见 T9）——asar 归档内无法 spawn/RUN_AS_NODE 读取且不可作 cwd（ENOTDIR/MODULE_NOT_FOUND 必现）；端口从 3123 起探测空闲；HTTP 200 后再 `loadURL`
 2. **dev**：`ELECTRON_START_URL` 存在则直接加载该 URL（不 spawn Next）
-3. **数据迁移（B6）**：`userData/data` 不存在时，按序探测 `SPEAKLOOP_DATA_SRC` → `join(app.getAppPath(), "..", "data")` → `join(process.cwd(), "data")`，存在则整目录复制 + 写 marker（`userData/.data-migrated`）
-4. **语音进程**：窗口显示后异步 spawn `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/start-all.ps1 -Silent -NoBrowser`（windowsHide）
-5. **窗口**：`frame:false, width:1120, height:760, minWidth:920, minHeight:640, backgroundColor:"#F2F2F7", roundedCorners:true`；`setPermissionRequestHandler`（media→allow）；`will-navigate` 仅 `127.0.0.1:<port>`；`setWindowOpenHandler` deny；拖拽区双击 → toggle-maximize
+3. **数据迁移（B6）**：`userData/data` 不存在时，按序探测 **`SPEAKLOOP_DATA_SRC` → `electron/build-meta.json` 的 `repoRoot`/data → `process.cwd()`/data**，存在则整目录复制 + 写 marker（`userData/.data-migrated`）。（`app.getAppPath()/../data` 在 NSIS 安装版必空，移除该探测；`build-meta.json` 由 T9 构建脚本写入，记录本机打包时的仓库根，如 `E:\\EnglishDemo`）；同时**复制 `.env` 至 `userData/.env`**，主进程解析后注入 Next 子进程 env（保证 Chat Key/provider 配置随包生效）
+4. **语音进程**：窗口显示后异步 spawn `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <脚本绝对路径> -Silent -NoBrowser`（windowsHide）。**脚本路径区分打包态**：`isPacked ? process.resourcesPath : app.getAppPath()` + `/scripts/start-all.ps1`（extraResources 落在 `resources/scripts`，不在 appPath 下）；**并以 env `SPEAKLOOP_REPO_ROOT` 传入仓库根**（打包态取 `build-meta.repoRoot`）——`start-all.ps1` 需改造：`$root = $env:SPEAKLOOP_REPO_ROOT` 优先，其次 `Split-Path $PSScriptRoot -Parent`（否则安装后按脚本相对路径找不到 `ai-server/` 与 `logs/`）
+5. **窗口**：`frame:false, width:1120, height:760, minWidth:920, minHeight:640, backgroundColor:"#F2F2F7", roundedCorners:true, resizable:true, maximizable:true`；`setPermissionRequestHandler`（media→allow）；`will-navigate` 仅 `127.0.0.1:<port>`；`setWindowOpenHandler` deny。**双击最大化：依赖 Windows 对 `-webkit-app-region: drag` 区域的原生标题栏双击行为（拖拽区 DOM 事件会被 Chromium 接管，渲染层 onDoubleClick 不会触发）——不实现自定义双击 IPC**
 6. **IPC**：`window:minimize / window:toggle-maximize / window:close(=quit) / service:restart-voice`（重跑 start-all 并轮询 8100/8101 health 后返回）
 7. **退出清理**（幂等，`isQuitting` 防重入）：杀 Next 子进程 → `powershell stop-all.ps1 -Quiet` → quit
 
@@ -198,8 +213,8 @@ export default { output: "standalone" }
 
 **Files:** Modify `package.json`；Create `public/icon.png`、`scripts/prepare-standalone.mjs`；Add devDeps electron/electron-builder
 
-- `package.json`：`"main": "electron/main.js"`；scripts：`electron:dev`、`build:exe: "next build && node scripts/prepare-standalone.mjs && electron-builder --win --x64"`；`build` 段：`appId com.speakloop.desktop / productName SpeakLoop / win: { target: "nsis", icon: "public/icon.png" } / extraResources: scripts / files: [".next/standalone/**", ".next/static/**", "public/**", "electron/**", "package.json"]`
-- `prepare-standalone.mjs`：复制 `.next/static` → `.next/standalone/.next/static`、`public` → `.next/standalone/public`
+- `package.json`：`"main": "electron/main.js"`；scripts：`electron:dev`、`build:exe: "next build && node scripts/prepare-standalone.mjs && electron-builder --win --x64"`；`build` 段：`appId com.speakloop.desktop / productName SpeakLoop / **asar: false**`（本地工具最省心，彻底规避 asar 内 spawn/ENOTDIR 问题）/ `win: { target: "nsis", icon: "public/icon.png" }` / `extraResources: scripts` / `files: [".next/standalone/**", ".next/static/**", "public/**", "electron/**", "package.json"]`
+- `prepare-standalone.mjs`：复制 `.next/static` → `.next/standalone/.next/static`、`public` → `.next/standalone/public`；**写入 `electron/build-meta.json`：`{ "repoRoot": "<打包时的 process.cwd()>" }`**（供打包态数据迁移与语音脚本仓库根解析）
 - `public/icon.png`：512×512 蓝圆角底 + 白色 S（PowerShell `System.Drawing` 生成）
 
 - [ ] `npm i -D electron electron-builder`；生成图标；`npm run build:exe` 产出 `dist/SpeakLoop Setup x.x.x.exe`
@@ -227,7 +242,7 @@ export default { output: "standalone" }
 | 网页回归 | `node scripts/console-check.mjs` 四页零错误；`node scripts/acceptance-check.mjs` **13/13**（类名契约保持） |
 | 视觉 | 首页/练习/生词三页截图对照模板；无青绿粗边；毛玻璃顶栏、分段控件、Inset List、双栏气泡、玻璃 dock |
 | 功能回归 | 悬停译文瞬时/离开隐/复悬停即时；朗读进度「合成中 Ns→播放中→清除」；目标橙色打勾；词典+加词；设置即时生效；报告/422 重试；浏览器模式关标签 ~5s 停 + 多标签保活 |
-| Electron 冒烟 | 无边框+顶栏拖拽+红黄绿+双击最大化；麦克风免弹窗直接录音；语音胶囊一键恢复；关窗后 8100/8101/3000 零残留 |
-| EXE | 安装 → 首启迁移（会话/生词/设置齐全）→ 完整练习闭环 → 退出零残留 |
+| Electron 冒烟 | 无边框+顶栏拖拽+红黄绿+双击最大化（原生行为）；麦克风免弹窗直接录音；语音胶囊一键恢复；关窗后 8100/8101/3000 零残留 |
+| EXE | 安装 → 首启迁移（会话/生词/设置齐全，`.env` 配置生效）→ 完整练习闭环（**安装版内语音朗读可用**：`SPEAKLOOP_REPO_ROOT` 解析到仓库 ai-server）→ 退出零残留 |
 
 **已知限制备案**：三色对比度例外（A1）；语音后端仅本机 conda（A2）；Electron 无自动化测试（B9）；NSIS 首次构建需联网下载 Electron 二进制。
