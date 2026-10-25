@@ -28,11 +28,12 @@ export function VoiceBanner() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [restoring, setRestoring] = useState(false)
 
-  if (!voice.loading && voice.stt !== "offline" && voice.tts !== "offline") return null
+  const offline = voice.stt === "offline" || voice.tts === "offline"
 
-  if (voice.loading) {
-    const stt = voice.stt === "loading" ? `STT ${voice.busyElapsed.stt}s` : "STT 就绪"
-    const tts = voice.tts === "loading" ? `TTS ${voice.busyElapsed.tts}s` : "TTS 就绪"
+  if (!offline) {
+    if (!voice.loading) return null
+    const stt = voice.stt === "loading" ? `STT ${voice.busyElapsed.stt}s` : voice.stt === "disabled" ? "STT 未启用" : "STT 就绪"
+    const tts = voice.tts === "loading" ? `TTS ${voice.busyElapsed.tts}s` : voice.tts === "disabled" ? "TTS 未启用" : "TTS 就绪"
     return (
       <div className="voice-status-banner" role="status" aria-live="polite">
         <span>语音预热中：{stt} · {tts}</span>
