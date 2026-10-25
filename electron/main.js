@@ -301,16 +301,34 @@ ipcMain.handle("window:close", () => {
 
 ipcMain.handle("service:restart-voice", () => restartVoiceServices())
 
-function killNextServer() {
+function waitForExit(proc, ms) {
+  return new Promise(resolve => {
+    if (!proc) return resolve()
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      resolve()
+    }
+    proc.on("exit", finish)
+    proc.on("error", finish)
+    setTimeout(finish, ms)
+  })
+}
+
+async function killNextServer() {
   const proc = nextProc
   nextProc = null
   if (!proc || !proc.pid) return
   try {
     if (process.platform === "win32") {
-      spawn("taskkill", ["/pid", String(proc.pid), "/T", "/F"], {
-        windowsHide: true,
-        stdio: "ignore",
-      })
+      await waitForExit(
+        spawn("taskkill", ["/pid", String(proc.pid), "/T", "/F"], {
+          windowsHide: true,
+          stdio: "ignore",
+        }),
+        5000,
+      )
     } else {
       proc.kill("SIGTERM")
     }
@@ -319,31 +337,42 @@ function killNextServer() {
   }
 }
 
-function stopVoiceServices() {
+async function stopVoiceServices() {
   try {
-    spawn(
-      "powershell",
-      [
-        "-NoProfile",
-        "-NonInteractive",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        path.join(scriptsDir(), "stop-all.ps1"),
-        "-Quiet",
-      ],
-      { windowsHide: true, stdio: "ignore" },
-    ).on("error", err => console.error("[main] stop-all spawn failed:", err.message))
+    await waitForExit(
+      spawn(
+        "powershell",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          path.join(scriptsDir(), "stop-all.ps1"),
+          "-Quiet",
+        ],
+        { windowsHide: true, stdio: "ignore" },
+      ),
+      8000,
+    )
   } catch (err) {
     console.error("[main] stop-all failed:", err.message)
   }
 }
 
-app.on("before-quit", () => {
+app.on("before-quit", e => {
   if (isQuitting) return
+  e.preventDefault()
   isQuitting = true
-  killNextServer()
-  stopVoiceServices()
+  ;(async () => {
+    try {
+      await killNextServer()
+    } catch {}
+    try {
+      await stopVoiceServices()
+    } catch {}
+    app.quit()
+  })()
 })
 
 app.whenReady().then(async () => {
