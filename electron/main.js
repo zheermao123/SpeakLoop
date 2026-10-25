@@ -340,17 +340,21 @@ async function killNextServer() {
 
 async function stopListeningPorts(ports) {
   try {
-    const out = execFileSync("netstat", ["-ano", "-p", "tcp"], { windowsHide: true, encoding: "utf8" })
-    const pids = new Set()
-    for (const line of out.split(/\r?\n/)) {
-      const m = line.match(/^\s*TCP\s+\S+:(\d+)\s+\S+\s+LISTENING\s+(\d+)/i)
-      if (m && ports.includes(Number(m[1]))) pids.add(Number(m[2]))
-    }
-    for (const pid of pids) {
-      await waitForExit(
-        spawn("taskkill", ["/pid", String(pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }),
-        4000,
-      )
+    for (let pass = 0; pass < 3; pass++) {
+      const out = execFileSync("netstat", ["-ano", "-p", "tcp"], { windowsHide: true, encoding: "utf8" })
+      const pids = new Set()
+      for (const line of out.split(/\r?\n/)) {
+        const m = line.match(/^\s*TCP\s+\S+:(\d+)\s+\S+\s+LISTENING\s+(\d+)/i)
+        if (m && ports.includes(Number(m[1]))) pids.add(Number(m[2]))
+      }
+      if (pids.size === 0) return
+      for (const pid of pids) {
+        await waitForExit(
+          spawn("taskkill", ["/pid", String(pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }),
+          4000,
+        )
+      }
+      await new Promise(resolve => setTimeout(resolve, 1500))
     }
   } catch (err) {
     console.error("[main] port cleanup failed:", err.message)
