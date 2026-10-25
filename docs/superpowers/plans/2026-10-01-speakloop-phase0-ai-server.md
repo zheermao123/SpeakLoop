@@ -1,4 +1,4 @@
-# SpeakLoop ai-server 实施计划（阶段 0 Spike → 可用服务）
+﻿# SpeakLoop ai-server 实施计划（阶段 0 Spike → 可用服务）
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -412,7 +412,7 @@ git commit -m "feat(ai-server): /stt endpoint with pyav decode"
 **Files:**
 - Modify: `ai-server/server.py`（两个角色块内各追加 /warmup）
 - Create: `scripts/start-ai.ps1`
-- Create: `docs/superpowers/specs/2026-10-01-ai-server-spike-results.md`
+- Create: `docs/superpowers/reports/2026-10-01-ai-server-spike-results.md`
 
 **Interfaces:**
 - Produces: `POST /warmup -> {"ok":true,"elapsed":s}`（两服务各自注册，触发本服务模型加载+一次首推理）；`scripts/start-ai.ps1` 一键拉起双进程；spike 报告（MVP-2 计划的输入）
@@ -473,7 +473,7 @@ Expected: 两个 warmup 各返回 `{"ok":true,"elapsed":<本服务冷启动总�
 
 - [ ] **Step 4: 写 spike 报告**
 
-`docs/superpowers/specs/2026-10-01-ai-server-spike-results.md`，模板：
+`docs/superpowers/reports/2026-10-01-ai-server-spike-results.md`，模板：
 
 ```markdown
 # ai-server Spike 实测报告（2026-10-01）
@@ -495,6 +495,6 @@ Expected: 两个 warmup 各返回 `{"ok":true,"elapsed":<本服务冷启动总�
 
 ```powershell
 Remove-Item E:\EnglishDemo\tts_out.wav, ai-server\test_webm.webm -ErrorAction SilentlyContinue
-git add ai-server/server.py scripts/start-ai.ps1 docs/superpowers/specs/2026-10-01-ai-server-spike-results.md
+git add ai-server/server.py scripts/start-ai.ps1 docs/superpowers/reports/2026-10-01-ai-server-spike-results.md
 git commit -m "feat(ai-server): per-role warmup, dual-process start script, spike report"
 ```
