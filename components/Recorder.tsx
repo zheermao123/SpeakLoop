@@ -41,7 +41,7 @@ export default function Recorder({ onRecorded, disabled }: { onRecorded: (b: Blo
     <div>
       <button
         type="button"
-        className={`btn ${recording ? "btn-danger" : ""}`}
+        className={recording ? "record-btn is-recording" : "record-btn"}
         onClick={toggle}
         disabled={disabled}
         aria-pressed={recording}

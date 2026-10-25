@@ -1,6 +1,6 @@
 "use client"
 
-import { CheckCircle, Circle, Translate } from "@phosphor-icons/react"
+import { Target, Translate } from "@phosphor-icons/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import DictPopover from "@/components/DictPopover"
@@ -314,107 +314,116 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   if (!session || !scenario) return <p className="muted">加载中…</p>
   return (
-    <div>
-      <div className="card">
-        <b>{scenario.title}</b>
-        {scenario.personaZh && <div>{scenario.personaZh}</div>}
-        <div className="row" style={{ alignItems: "flex-start" }}>
-          <div style={{ flex: 1 }} className="muted">
-            <WordText text={scenario.persona} onWordClick={handleWordClick(scenario.persona)} activeWord={dict?.word} />
-          </div>
-          <SpeakButton onSpeak={() => speakNow("persona", scenario.persona)} label="朗读角色设定" status={speakStatusOf("persona")} />
-        </div>
-        <div className="mt-2" role="list" aria-label="练习目标进度">
-          <div className="muted">已完成 {goalProgress.length}/{scenario.goals.length}</div>
-          {scenario.goals.map((g, i) => (
-            <div
-              key={i}
-              role="listitem"
-              className={goalProgress.includes(i) ? "goal-done" : ""}
-              onMouseEnter={() => { hoverTimer.current = setTimeout(() => { setZhShown(g); ensureZh(g) }, 300) }}
-              onMouseLeave={() => { if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null }; setZhShown(null) }}
-              onClick={e => { if (!(e.target as HTMLElement).closest(".word-chip")) { setZhShown(prev => (prev === g ? null : g)); ensureZh(g) } }}
-            >
-              {goalProgress.includes(i)
-                ? <CheckCircle size={18} weight="fill" aria-hidden="true" />
-                : <Circle size={18} aria-hidden="true" />}{" "}
-              {i}. <WordText text={g} onWordClick={handleWordClick(g)} activeWord={dict?.word} />
-              <SpeakButton onSpeak={() => speakNow(`goal-${i}`, g)} label={`朗读目标 ${i}`} status={speakStatusOf(`goal-${i}`)} />
-              {zhShown === g && zhMap[g] && <div className="zh-line"><span className="zh-label">译文</span>{zhMap[g]}</div>}
-            </div>
-          ))}
-        </div>
-        <VoiceBanner />
-        {ttsDown && <span className="chip">语音服务离线（文字模式）</span>}
-      </div>
-      <div style={{ minHeight: 200 }}>
-        {bubbles.map((b, i) => {
-          const canTranslate = !hasCjk(b.text)
-          const speakingNow = busy && b.role === "ai" && i === bubbles.length - 1
-          return (
-            <div
-              key={i}
-              className={`bubble ${b.role === "user" ? "bubble-user" : b.role === "ai" ? "bubble-ai" : "bubble-coach"}`}
-              onMouseEnter={canTranslate && !busy ? () => { hoverTimer.current = setTimeout(() => { setZhShown(b.text); ensureZh(b.text) }, 300) } : undefined}
-              onMouseLeave={canTranslate ? () => { if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null }; setZhShown(null) } : undefined}
-            >
-              <WordText text={b.text} onWordClick={handleWordClick(b.text)} activeWord={dict?.word} />
-              <div className="bubble-actions">
-                <SpeakButton onSpeak={() => speakNow(`bubble-${i}`, b.text)} label="朗读本句" disabled={speakingNow} status={speakStatusOf(`bubble-${i}`)} />
-                {canTranslate && (
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label="显示中文翻译"
-                    aria-pressed={zhShown === b.text}
-                    onClick={() => { setZhShown(prev => (prev === b.text ? null : b.text)); ensureZh(b.text) }}
-                  >
-                    <Translate size={16} weight="regular" aria-hidden="true" />
-                  </button>
-                )}
-              </div>
-              {canTranslate && zhShown === b.text && zhMap[b.text] && (
-                <div className="zh-line"><span className="zh-label">译文</span>{zhMap[b.text]}</div>
-              )}
-            </div>
-          )
-        })}
-        {phase && (
-          <p className="muted" aria-live="polite">
-            {phase.label}中… {((Date.now() - phase.since) / 1000).toFixed(0)}s
-            {phase.label === "语音识别" && sttLoading ? "（模型预热中）" : null}
-            {phase.label === "语音合成" && ttsLoading ? "（模型预热中）" : null}
-          </p>
-        )}
-        {busy && !phase && <p className="muted">处理中…</p>}
-        {failed && (
+    <div className="page-container">
+      <VoiceBanner />
+      <div className="practice-grid">
+        <div className="practice-left-col">
           <div className="card">
-            <span className="muted">{stepLabel[failed.name]}失败</span>{" "}
-            <button className="btn btn-secondary" onClick={failed.retry}>重试</button>
+            <div className="muted" style={{ fontSize: 12 }}>当前练习场景</div>
+            <b>{scenario.title}</b>
+            {scenario.personaZh && <div>{scenario.personaZh}</div>}
+            <div style={{ background: "var(--bg-inset)", borderRadius: 12, padding: 12, marginTop: 12 }}>
+              <div className="muted" style={{ fontSize: 11 }}>EN PERSONA</div>
+              <WordText text={scenario.persona} onWordClick={handleWordClick(scenario.persona)} activeWord={dict?.word} />
+              <SpeakButton onSpeak={() => speakNow("persona", scenario.persona)} label="朗读角色设定" status={speakStatusOf("persona")} />
+            </div>
           </div>
-        )}
-      </div>
-      <div className="card">
-        <div className="row">
-          <Recorder onRecorded={runStt} disabled={busy} />
-          <input className="input" placeholder="或用键盘输入英文…" value={keyboard}
-            onChange={e => setKeyboard(e.target.value)}
-            onKeyDown={async e => {
-              if (e.key === "Enter" && keyboard.trim() && !busy) {
-                const t = keyboard.trim(); setKeyboard("")
-                pending.current = { userText: t }
-                await runChatStream(t)
-              }
-            }} />
+          <div className="card">
+            <div className="row" style={{ justifyContent: "space-between" }}>
+              <b><Target size={16} /> 练习目标</b>
+              <span className="muted">已完成 {goalProgress.length}/{scenario.goals.length}</span>
+            </div>
+            <div className="goal-list" role="list" aria-label="练习目标进度">
+              {scenario.goals.map((g, i) => (
+                <div
+                  key={i}
+                  role="listitem"
+                  className={"goal-row" + (goalProgress.includes(i) ? " done" : "")}
+                  onMouseEnter={() => { hoverTimer.current = setTimeout(() => { setZhShown(g); ensureZh(g) }, 300) }}
+                  onMouseLeave={() => { if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null }; setZhShown(null) }}
+                  onClick={e => { if (!(e.target as HTMLElement).closest(".word-chip")) { setZhShown(prev => (prev === g ? null : g)); ensureZh(g) } }}
+                >
+                  <span className="goal-checkbox" aria-hidden="true">{goalProgress.includes(i) ? "✓" : ""}</span>
+                  {i}. <WordText text={g} onWordClick={handleWordClick(g)} activeWord={dict?.word} />
+                  <SpeakButton onSpeak={() => speakNow(`goal-${i}`, g)} label={`朗读目标 ${i}`} status={speakStatusOf(`goal-${i}`)} />
+                  {zhShown === g && zhMap[g] && <div className="zh-line"><span className="zh-label">译文</span>{zhMap[g]}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="row" style={{ marginTop: 8 }}>
-          <button className="btn btn-secondary" disabled={busy || bubbles.length === 0}
-            onClick={() => runChat("simplify")}>听不懂</button>
-          <button className="btn btn-secondary" disabled={busy || bubbles.length === 0}
-            onClick={() => runChat("hint")}>提示</button>
-          <button className="btn btn-danger" disabled={busy || bubbles.length === 0} onClick={endPractice}>
-            结束练习
-          </button>
+        <div>
+          {ttsDown && <span className="chip">语音服务离线（文字模式）</span>}
+          <div className="bubble-stream">
+            {bubbles.map((b, i) => {
+              const canTranslate = !hasCjk(b.text)
+              const speakingNow = busy && b.role === "ai" && i === bubbles.length - 1
+              return (
+                <div
+                  key={i}
+                  className={`bubble ${b.role === "user" ? "bubble-user" : b.role === "ai" ? "bubble-ai" : "bubble-coach"}`}
+                  onMouseEnter={canTranslate && !busy ? () => { hoverTimer.current = setTimeout(() => { setZhShown(b.text); ensureZh(b.text) }, 300) } : undefined}
+                  onMouseLeave={canTranslate ? () => { if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null }; setZhShown(null) } : undefined}
+                >
+                  <WordText text={b.text} onWordClick={handleWordClick(b.text)} activeWord={dict?.word} />
+                  <div className="bubble-actions">
+                    <SpeakButton onSpeak={() => speakNow(`bubble-${i}`, b.text)} label="朗读本句" disabled={speakingNow} status={speakStatusOf(`bubble-${i}`)} />
+                    {canTranslate && (
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        aria-label="显示中文翻译"
+                        aria-pressed={zhShown === b.text}
+                        onClick={() => { setZhShown(prev => (prev === b.text ? null : b.text)); ensureZh(b.text) }}
+                      >
+                        <Translate size={16} weight="regular" aria-hidden="true" />
+                      </button>
+                    )}
+                  </div>
+                  {canTranslate && zhShown === b.text && zhMap[b.text] && (
+                    <div className="zh-line"><span className="zh-label">译文</span>{zhMap[b.text]}</div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          {phase && (
+            <p className="phase-timer-bar" aria-live="polite">
+              {phase.label}中… {((Date.now() - phase.since) / 1000).toFixed(0)}s
+              {phase.label === "语音识别" && sttLoading ? "（模型预热中）" : null}
+              {phase.label === "语音合成" && ttsLoading ? "（模型预热中）" : null}
+            </p>
+          )}
+          {busy && !phase && <p className="muted">处理中…</p>}
+          {failed && (
+            <div className="card">
+              <span className="muted">{stepLabel[failed.name]}失败</span>{" "}
+              <button className="btn btn-secondary" onClick={failed.retry}>重试</button>
+            </div>
+          )}
+          <div className="practice-dock">
+            <div className="dock-assist-row">
+              <button className="btn btn-secondary" disabled={busy || bubbles.length === 0}
+                onClick={() => runChat("simplify")}>听不懂</button>
+              <button className="btn btn-secondary" disabled={busy || bubbles.length === 0}
+                onClick={() => runChat("hint")}>提示</button>
+              <button className="btn btn-danger" disabled={busy || bubbles.length === 0} onClick={endPractice}>
+                结束练习
+              </button>
+            </div>
+            <div className="dock-input-row">
+              <input className="ios-input" placeholder="或用键盘输入英文…" value={keyboard}
+                onChange={e => setKeyboard(e.target.value)}
+                onKeyDown={async e => {
+                  if (e.key === "Enter" && keyboard.trim() && !busy) {
+                    const t = keyboard.trim(); setKeyboard("")
+                    pending.current = { userText: t }
+                    await runChatStream(t)
+                  }
+                }} />
+              <Recorder onRecorded={runStt} disabled={busy} />
+            </div>
+          </div>
         </div>
       </div>
       {dict && (
