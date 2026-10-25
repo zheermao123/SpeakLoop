@@ -49,6 +49,14 @@ Next.js 全栈（薄路由 → services 业务层 → json-store 存储）
 
 双击根目录 **`启动SpeakLoop.vbs`**：无窗口拉起 ai-server 双服务 + Next.js，就绪后自动打开浏览器（语音预热约 2-3 分钟）。**关闭浏览器约 5 秒后自动停止全栈**（离页信标 + 5s 宽限——刷新/关闭其中一个标签均不误停；异常退出兜底 ≤75s（含后台标签节流容忍）；`AUTO_STOP=0` 关闭，`AUTO_STOP_IDLE_MS` 调兜底阈值）。**`停止SpeakLoop.vbs`** 手动立即停止。日志见 `logs/`。
 
+## 桌面版（EXE，iOS 风格）
+
+- 开发调试：`npm run electron:dev`（Electron 无边框窗口 + 本地 Next dev）
+- 构建安装包：`npm run build:exe` → `dist/SpeakLoop Setup x.x.x.exe`
+- 特性：iOS 风格无边框窗口（顶栏拖拽 / 红黄绿控制 / 毛玻璃）、麦克风权限自动放行、语音服务由应用生命周期托管（关窗即退出并清理进程，零残留）
+- 数据位置：`%APPDATA%\SpeakLoop\data`（首次启动自动从仓库 `data/` 迁移会话/生词/设置）
+- 语音仍依赖本机 conda 双环境（模型不入包，换机需重新部署）
+
 ## 配置说明
 
 **应用内设置（推荐）**：打开 `/settings`（导航栏"设置"）即可配置 Chat/语音服务/音色——改完即时生效无需重启；API Key 仅本地存储、界面永不明文回显（只显示尾 4 位）。`.env` 仍可用作初始默认层（设置页优先于 `.env`）。

@@ -1,6 +1,6 @@
 ﻿# SpeakLoop 设计文档
 
-- 日期：2026-10-01（v1.4：生产 Mock 移除——Mock 定性为测试脚手架，生产零 mock、假件下沉 tests/fixtures；历史沿革见各勘误记录 `docs/superpowers/plans/*erratum*.md`）
+- 日期：2026-10-01（v1.6：视觉方向重构为 iOS/Apple HIG + Electron 桌面端交付；历史沿革见各勘误记录 `docs/superpowers/plans/*erratum*.md`）
 - 状态：已确认
 - 仓库：E:\EnglishDemo（全新仓库，本设计为首个交付物）
 
@@ -77,6 +77,7 @@
 - **薄路由 + services**：API Route 只做参数解析与调用 service，业务逻辑全部在 `lib/services`，可独立测试、可迁移。
 - **语音是增强不是依赖**：STT 可用键盘输入降级；TTS 不可用时纯文字对话，均不阻断。
 - **仅 Chat 依赖外部云端**：STT/TTS 全本地，隐私与成本最优。
+- **桌面端（v1.6）**：Electron 壳（无边框窗口）以 **Next standalone 子进程**运行应用（动态空闲端口、`DATA_DIR=<userData>/data`、`AUTO_STOP=0`）；语音仍走本机 conda 双服务；详见 §7.5。
 
 ## 4. 项目结构
 
@@ -307,7 +308,18 @@ MVP 对策（均已纳入）：文字先显 + TTS 异步播放（感知延迟≈
   - F5-1 空串 baseUrl 校验：现 `if (u && ...)` 跳过空串 → 可落盘清空 env/default（UI 可达破坏路径）——修为**出现即必须非空且 http(s) 前缀，否则 400**
   - F5-2 warmup 路由同源：现 env-only 门控与配置层脱节（设置页用户失预热、改址不探活）——改读 `resolveConfig`
   - F5-3 探针体验：测试按钮文案注明"（保存后值）"；chat 探针加超时
+### 7.5 桌面端（Electron，v1.6）
+
+- **壳**：Electron `frame:false` 窗口（1120×760，min 920×640，Windows 11 圆角）；红黄绿自定义控制 + 顶栏拖拽区（`-webkit-app-region: drag`，交互元素 `.no-drag`）
+- **Next 运行**：`output:'standalone'`；主进程以 `ELECTRON_RUN_AS_NODE` 拉起 `server.js`（动态空闲端口，默认从 3123 探测）；注入 `DATA_DIR=<userData>/data` 与 `AUTO_STOP=0`（桌面生命周期归主进程；页面心跳式自动停止仅浏览器模式生效）
+- **语音**：本机 conda 双服务（`start-all.ps1 -Silent -NoBrowser` 幂等）；IPC `service:restart-voice` 重启并轮询 `/health`
+- **数据迁移**：首启将既有 `data/`（会话/生词/设置/音频）复制至 `userData/data`（一次性 marker）
+- **退出**：先杀 Next 子进程 → `stop-all.ps1 -Quiet` → quit，零残留
+- **权限与安全**：media 权限自动放行；`will-navigate` 仅限本机端口；`setWindowOpenHandler` deny；`contextIsolation` + preload 白名单 IPC
+- **打包**：electron-builder NSIS（仅安装版）；图标蓝底 S（512px PNG）
 ## 8. UI 页面
+
+（v1.6：全站 iOS HIG 视觉；练习页改为双栏布局；顶栏含分段导航与语音胶囊）
 
 | 路由 | 内容 |
 |---|---|
@@ -318,16 +330,18 @@ MVP 对策（均已纳入）：文字先显 + TTS 异步播放（感知延迟≈
 | `/vocab` | 生词列表（状态、来源场次、使用次数、lastUsedAt）、标记掌握、删除 |
 | `/settings` | 应用内设置（MVP-2.1）：Chat（BaseURL/Key/Model）、语音服务地址、TTS 默认音色；Key 永不明文回显（仅尾 4 位）；三区测试连接 |
 
-### 8.1 视觉设计（活泼学习风 · Claymorphism，2026-10-01 评审后增补）
+### 8.1 视觉设计（iOS / Apple HIG，v1.6 重构；Claymorphism 已退役）
 
-依据：ui-ux-pro-max 技能库命中结果——product 域 "Language Learning App"（进度可视化优先）+ style 域 claymorphism + color 域 LMS 教育色板。
+依据：用户提供的 iOS 模板（Apple HIG 浅色模式）；视觉数值以模板为准。
 
-- **色彩 token（LMS 教育色板）**：primary `#0D9488` 深青（on-primary 黑字）/ accent `#D97706` 琥珀（进度与成就）/ secondary `#2DD4BF` / background `#F0FDFA` / foreground `#134E4A` / card `#FFFFFF` / muted `#E8F1F4` / muted-fg `#475569`（白底 ≈7:1）/ border `#5EEAD4` / destructive `#DC2626` / ring `#0D9488`
-- **造型 token（Claymorphism）**：圆角 16-24px（`--radius-md/lg`）；3px 厚边框；双阴影 `inset -2px -2px 8px` + `4px 4px 8px`；软按压 `scale(0.97)` 200ms ease-out；完成态弹跳 `cubic-bezier(0.34,1.56,0.64,1)`（仅微动效）
-- **字体**：Baloo 2（标题）+ Plus Jakarta Sans（正文），system-ui 回退
-- **无障碍硬性**（该风格 accessibility=conditional）：文字对比 ≥4.5:1；`:focus-visible` 2px ring 焦点环；`prefers-reduced-motion` 兜底；按钮 min-height 44px；图标一律 Phosphor 矢量（`@phosphor-icons/react`），禁止 emoji 作结构性图标；录音按钮 `aria-pressed`、录音状态 `aria-live`
-- **间距节奏**：`--space-1..5` = 4/8/16/24/32px
-
+- **色板（原生 iOS，A1 裁定）**：`#007AFF` 主蓝（按钮/链接/焦点环）/ `#34C759` 成功 / `#FF9500` 橙（成就与进度）/ `#FF3B30` 危险 / 背景 `#F2F2F7`（System Grouped Background）/ 卡片 `#FFFFFF`（**无边框**）/ 正文 `#1C1C1E` / 次级 `#3C3C43` / 三级 `#8E8E93` / hairline `rgba(60,60,67,0.11)` / 四组语义 tint（12-14%）
+- **材质（毛玻璃三档）**：顶栏 `rgba(255,255,255,.78)`+blur 20；底部操控台 `rgba(255,255,255,.85)`+blur 20；弹出层 `rgba(255,255,255,.94)`+blur 25；卡片阴影 `0 2px 10px rgba(0,0,0,.03)`；浮层 `0 10px 30px rgba(0,0,0,.08)`；弹层 `0 16px 36px rgba(0,0,0,.14)`
+- **造型**：卡片/气泡圆角 18px（气泡带 6px 尾部方向角）；控件圆角 12px；胶囊 999px
+- **字体**：系统栈 `-apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei"`；移除 Google Fonts 外链
+- **组件规范**：顶栏=毛玻璃 + 分段控件（`rgba(118,118,128,.12)` 槽 + 白色选中药丸）+ 语音胶囊；列表=Inset Grouped（单容器 + 缩进分割线 left 20px）；气泡三色（用户蓝渐变右对齐 / AI 白左 / 教练琥珀 `#FFF9E6`+`#FFE082`）；练习页=双栏（310px 场景+目标 / 气泡流 + 玻璃 dock）
+- **无障碍**：焦点环 2px `#007AFF`；`prefers-reduced-motion`；命中区 ≥44px；Phosphor 矢量图标（禁 emoji 结构图标）；录音 `aria-pressed` + `aria-live`；**对比度例外（A1 裁定备案）**：`#007AFF`（白字 3.9:1）、`#8E8E93`（3.2:1）、`#FF3B30`（3.6:1）低于 4.5:1，按用户指定的原生 iOS 色记为例外；其余文字维持 ≥4.5:1 原则
+- **间距**：`--space-1..5` = 4/8/16/24/32px
+- **退役记录**：Claymorphism（3px 青边框 / 双阴影 / 弹跳曲线 / Baloo 2 + Plus Jakarta Sans）自 v1.6 起不再使用
 ## 9. 错误处理
 
 | 场景 | 处理 |
