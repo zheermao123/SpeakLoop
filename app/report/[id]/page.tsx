@@ -52,7 +52,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           <div className="card">
             <b>报告生成失败（解析错误）</b>
             <p className="muted">以下是模型原始输出，可重试生成：</p>
-            <pre style={{ whiteSpace: "pre-wrap", background: "var(--color-muted)", padding: 12, borderRadius: 8 }}>{rawReport}</pre>
+            <pre style={{ whiteSpace: "pre-wrap", background: "var(--bg-inset)", padding: 12, borderRadius: 8 }}>{rawReport}</pre>
             <button className="btn" disabled={regenerating} onClick={regenerate}>重新生成</button>
           </div>
         ) : (
