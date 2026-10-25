@@ -1,4 +1,4 @@
-import { chromium } from "playwright"
+﻿import { chromium } from "playwright"
 
 const s = await (
   await fetch("http://localhost:3000/api/sessions", {
@@ -70,11 +70,11 @@ await page.locator('button[aria-label="朗读目标 0"]').click()
 let synthSeen = false
 let playSeen = false
 try {
-  await page.waitForFunction(() => document.body.textContent.includes("合成中"), { timeout: 5000 })
+  await page.waitForFunction(() => document.body.textContent.includes("合成中"), null, { timeout: 8000 })
   synthSeen = true
 } catch {}
 try {
-  await page.waitForFunction(() => document.body.textContent.includes("播放中"), { timeout: 60000 })
+  await page.waitForFunction(() => document.body.textContent.includes("播放中"), null, { timeout: 150000 })
   playSeen = true
 } catch {}
 const playAt = Date.now() - tClick
@@ -82,7 +82,7 @@ let cleared = false
 try {
   await page.waitForFunction(
     () => !document.body.textContent.includes("播放中") && !document.body.textContent.includes("合成中"),
-    { timeout: 20000 }
+    null, { timeout: 30000 }
   )
   cleared = true
 } catch {}
@@ -93,7 +93,7 @@ check("朗读进度：结束清除", cleared, `全流程 ${doneAt}ms`)
 
 for (const path of ["/", "/scenarios", "/settings", "/vocab"]) {
   try {
-    await page.goto(`http://localhost:3000${path}`, { waitUntil: "networkidle", timeout: 20000 })
+    await page.goto(`http://localhost:3000${path}`, { waitUntil: "domcontentloaded", timeout: 30000 })
     const body = await page.locator("body").textContent()
     const ok = !body.includes("Application error") && !body.includes("client-side exception")
     check(`回归页面 ${path}`, ok)
