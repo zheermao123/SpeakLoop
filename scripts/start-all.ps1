@@ -2,7 +2,8 @@
 # 用法：双击根目录 启动SpeakLoop.vbs；或 powershell -File scripts/start-all.ps1 [-Silent] [-NoBrowser]
 param(
   [switch]$Silent,
-  [switch]$NoBrowser
+  [switch]$NoBrowser,
+  [switch]$NoNext
 )
 $ErrorActionPreference = "Continue"
 $root = if ($env:SPEAKLOOP_REPO_ROOT) { $env:SPEAKLOOP_REPO_ROOT } else { Split-Path $PSScriptRoot -Parent }
@@ -43,7 +44,7 @@ if (-not (Test-Url "http://127.0.0.1:8101/health")) {
 }
 
 $nextWasDown = -not (Test-Url "http://localhost:3000/api/scenarios")
-if ($nextWasDown) {
+if ($nextWasDown -and -not $NoNext) {
   Log "starting next-server"
   if (-not (Test-Path (Join-Path $root ".next\BUILD_ID"))) {
     Log "no build artifacts, running npm run build"
@@ -57,12 +58,16 @@ if ($nextWasDown) {
     -RedirectStandardError (Join-Path $logDir "next.err")
 }
 
-$deadline = (Get-Date).AddSeconds(120)
-$nextUp = $false
-do {
-  Start-Sleep -Seconds 3
-  $nextUp = Test-Url "http://localhost:3000/api/scenarios"
-} until ($nextUp -or (Get-Date) -gt $deadline)
+if ($NoNext) {
+  $nextUp = $true
+} else {
+  $deadline = (Get-Date).AddSeconds(120)
+  $nextUp = $false
+  do {
+    Start-Sleep -Seconds 3
+    $nextUp = Test-Url "http://localhost:3000/api/scenarios"
+  } until ($nextUp -or (Get-Date) -gt $deadline)
+}
 
 try {
   Invoke-WebRequest -Uri "http://127.0.0.1:8100/warmup" -Method POST -UseBasicParsing -TimeoutSec 5 | Out-Null
@@ -76,7 +81,7 @@ if (-not $nextUp -and -not $Silent) {
   $shell.Popup("SpeakLoop 启动超时，请查看 logs\ 目录日志。", 8, "SpeakLoop", 16) | Out-Null
 }
 
-$openBrowser = $nextWasDown
+$openBrowser = ($nextWasDown -and -not $NoNext)
 $reason = if ($nextWasDown) { "next freshly started" } else { "probe" }
 if ($nextUp -and -not $openBrowser) {
   try {

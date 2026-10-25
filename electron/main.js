@@ -1,5 +1,5 @@
-import { app, BrowserWindow, dialog, ipcMain, session } from "electron"
-import { spawn } from "node:child_process"
+﻿import { app, BrowserWindow, dialog, ipcMain, session } from "electron"
+import { execFileSync, spawn } from "node:child_process"
 import fs from "node:fs"
 import net from "node:net"
 import path from "node:path"
@@ -189,6 +189,7 @@ function startVoiceServices() {
         path.join(scriptsDir(), "start-all.ps1"),
         "-Silent",
         "-NoBrowser",
+        "-NoNext",
       ],
       {
         env: { ...process.env, SPEAKLOOP_REPO_ROOT: repoRootForScripts() },
@@ -337,27 +338,27 @@ async function killNextServer() {
   }
 }
 
-async function stopVoiceServices() {
+async function stopListeningPorts(ports) {
   try {
-    await waitForExit(
-      spawn(
-        "powershell",
-        [
-          "-NoProfile",
-          "-NonInteractive",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          path.join(scriptsDir(), "stop-all.ps1"),
-          "-Quiet",
-        ],
-        { windowsHide: true, stdio: "ignore" },
-      ),
-      8000,
-    )
+    const out = execFileSync("netstat", ["-ano", "-p", "tcp"], { windowsHide: true, encoding: "utf8" })
+    const pids = new Set()
+    for (const line of out.split(/\r?\n/)) {
+      const m = line.match(/^\s*TCP\s+\S+:(\d+)\s+\S+\s+LISTENING\s+(\d+)/i)
+      if (m && ports.includes(Number(m[1]))) pids.add(Number(m[2]))
+    }
+    for (const pid of pids) {
+      await waitForExit(
+        spawn("taskkill", ["/pid", String(pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }),
+        4000,
+      )
+    }
   } catch (err) {
-    console.error("[main] stop-all failed:", err.message)
+    console.error("[main] port cleanup failed:", err.message)
   }
+}
+
+async function stopVoiceServices() {
+  await stopListeningPorts([3000, 8100, 8101])
 }
 
 app.on("before-quit", e => {
