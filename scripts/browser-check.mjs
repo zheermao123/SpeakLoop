@@ -1,4 +1,4 @@
-import { chromium } from "playwright"
+﻿import { chromium } from "playwright"
 import { mkdirSync } from "node:fs"
 
 const BASE = "http://localhost:3000"
@@ -27,7 +27,7 @@ try {
   await page.locator(".card.row", { hasText: "英文面试" }).locator("button", { hasText: "开始练习" }).click()
   await page.waitForURL(/\/practice\//, { timeout: 15000 })
   check("进入对话页", true)
-  await page.waitForSelector(".goal-done, .muted", { timeout: 10000 })
+  await page.waitForSelector(".goal-row.done, .goal-done, .muted", { timeout: 10000 })
 
   const kb = page.locator("input[placeholder*='键盘']")
   await kb.fill("I am a senior engineer with eight years of experience scaling backend systems.")
@@ -61,7 +61,7 @@ try {
   await kb.press("Enter")
   await page.waitForFunction(
     () => {
-      const goals = [...document.querySelectorAll(".goal-done")]
+      const goals = [...document.querySelectorAll(".goal-row.done, .goal-done")]
       return goals.length >= 1
     },
     { timeout: 90000 }
