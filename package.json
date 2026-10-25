@@ -3,13 +3,16 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "doctor": "node scripts/doctor.mjs"
+    "doctor": "node scripts/doctor.mjs",
+    "electron:dev": "node scripts/electron-dev.mjs",
+    "build:exe": "next build && node scripts/prepare-standalone.mjs && electron-builder --win --x64"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
@@ -18,10 +21,38 @@
     "react-dom": "^19.0.0",
     "zod": "^3.24.1"
   },
+  "build": {
+    "appId": "com.speakloop.desktop",
+    "productName": "SpeakLoop",
+    "asar": false,
+    "files": [
+      ".next/standalone/**",
+      ".next/static/**",
+      "public/**",
+      "electron/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "scripts",
+        "to": "scripts"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0",
     "playwright": "^1.63.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.8"
