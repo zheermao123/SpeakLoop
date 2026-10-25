@@ -41,7 +41,7 @@ export default function VocabPage() {
                     <option key={s} value={s}>{statusLabel[s]}</option>
                   ))}
                 </select>
-                <button className="btn btn-danger" style={{ minHeight: 32, padding: "4px 12px", fontSize: 13 }} onClick={() => remove(w.id)}>删除</button>
+                <button type="button" className="btn" style={{ minHeight: 32, padding: "4px 12px", fontSize: 13, background: "var(--tint-red)", color: "var(--ios-red)", boxShadow: "none" }} onClick={() => remove(w.id)}>删除</button>
               </div>
             </div>
           ))}
