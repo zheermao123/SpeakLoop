@@ -49,13 +49,25 @@ Next.js 全栈（薄路由 → services 业务层 → json-store 存储）
 
 双击根目录 **`启动SpeakLoop.vbs`**：无窗口拉起 ai-server 双服务 + Next.js，就绪后自动打开浏览器（语音预热约 2-3 分钟）。**关闭浏览器约 5 秒后自动停止全栈**（离页信标 + 5s 宽限——刷新/关闭其中一个标签均不误停；异常退出兜底 ≤75s（含后台标签节流容忍）；`AUTO_STOP=0` 关闭，`AUTO_STOP_IDLE_MS` 调兜底阈值）。**`停止SpeakLoop.vbs`** 手动立即停止。日志见 `logs/`。
 
-## 桌面版（EXE，iOS 风格）
+## 桌面版 EXE
 
-- 开发调试：`npm run electron:dev`（Electron 无边框窗口 + 本地 Next dev）
-- 构建安装包：`npm run build:exe` → `dist/SpeakLoop Setup x.x.x.exe`
-- 特性：iOS 风格无边框窗口（顶栏拖拽 / 红黄绿控制 / 毛玻璃）、麦克风权限自动放行、语音服务由应用生命周期托管（关窗即退出并清理进程，零残留）
-- 数据位置：`%APPDATA%\SpeakLoop\data`（首次启动自动从仓库 `data/` 迁移会话/生词/设置）
-- 语音仍依赖本机 conda 双环境（模型不入包，换机需重新部署）
+- **安装包**：electron-builder NSIS（可选安装目录）——`npm run build:exe` 产出 `dist/SpeakLoop Setup <version>.exe`
+- **无边框窗口**：自绘红黄绿交通灯 + 顶栏拖拽区域；双击标题栏最大化（沿用 Windows 原生行为）
+- **Mica 透光**：Windows 11 下 `backgroundMaterial: "mica"` 启用 DWM 硬件半透明，页面底色 `rgba(242,242,247,.72)` 与桌面壁纸柔和融合；旧版 Windows 自动退化为不透明背景，功能不受影响
+- **权限与退出**：麦克风自动放行、无权限弹窗；关闭窗口即退出应用（无托盘常驻）；退出清理会停止 Next 与语音服务，零残留
+- **内置服务**：Standalone Next 运行于动态端口（3123 起自动择空闲）；`DATA_DIR` 指向 `%APPDATA%\SpeakLoop\data`，首次启动自动迁移仓库既有 `data/` 与 `.env`
+- **开发调试**：`npm run electron:dev` 启动 `next dev`，并以 `ELECTRON_START_URL` 指向开发服务器加载 Electron
+- **语音依赖**：语音仍依赖本机 conda 双环境（模型不入包，换机需重新部署）
+
+## 设计系统
+
+按 iOS 17/18 原生质感实现（Apple HIG 浅色模式，完整规范见设计文档 §8.1）：
+
+- **双引擎**：Konsta UI（iOS 主题）+ Tailwind CSS——Konsta 承载页面主体控件，Tailwind 提供工具类；手写 `globals.css` 保留按钮 / 气泡 / 生词 chip 等组件类，全部落在 Apple HIG 设计 token 上
+- **品牌与动效**：`@squircle-js` 连续曲率品牌标记；Framer Motion 弹簧微交互（语音胶囊按压、录音按钮按压），遵循 `prefers-reduced-motion`
+- **浮层**：Radix Popover 承载逐词词典浮层，碰撞感知定位自动避让视口边缘；Radix Select 负责音色选择
+- **色彩与字体**：Apple HIG 调色板——强调蓝 `#007AFF`、成功绿 `#34C759`、提醒橙 `#FF9500`、危险红 `#FF3B30`，分组背景 `#F2F2F7`，系统字体栈 `-apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei"`
+- **对比度例外**：原版 iOS 色值在部分组合低于 WCAG 4.5:1（如 `#007AFF` 约 3.9:1、`#8E8E93` 约 3.2:1、`#FF3B30` 约 3.6:1），按设计文档 §8.1 保留原色作为视觉基准，正文与关键操作文案仍按 ≥4.5:1 兜底
 
 ## 配置说明
 
@@ -100,6 +112,9 @@ Next.js 全栈（薄路由 → services 业务层 → json-store 存储）
 - 整段语音合成感知延迟 ~13s（STT 1.6s + LLM 0.8s + TTS 合成 ~10.9s，3070 实测）——界面有分相位耗时指示器；优化候选：0.6B 模型对比 / int8 量化
 - 语音预热约 2-3 分钟（模型冷载），期间文字模式可用；首页与对话页有 STT/TTS 双行预热状态（就绪/预热中·计时/离线·恢复指引/异常超 240s）
 - 桌面端优先，移动端未深度适配
+- 语音服务需本机 conda 双环境（ASR/TTS 各一），模型不入 EXE，换机需重新部署
+- Mica 硬件透光仅在 Windows 11 完整生效，Windows 10 及更早为不透明背景
+- NSIS 首次构建需联网下载 Electron 二进制（体积大，耗时取决于网络）
 - 发音评分未实现（原声回放仅自助对比）
 
 ## FAQ
