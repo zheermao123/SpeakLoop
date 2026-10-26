@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import * as Popover from "@radix-ui/react-popover"
+import { useEffect, useState } from "react"
 
 type State = {
   status: "loading" | "ready" | "error"
@@ -9,7 +10,6 @@ type State = {
 }
 
 export default function DictPopover({ word, sentence, anchor, onClose, sessionId }: { word: string; sentence: string; anchor: DOMRect; onClose: () => void; sessionId?: string }) {
-  const ref = useRef<HTMLDivElement | null>(null)
   const [state, setState] = useState<State>({ status: "loading" })
   const [attempt, setAttempt] = useState(0)
   const [addState, setAddState] = useState<"idle" | "done" | "error">("idle")
@@ -41,25 +41,6 @@ export default function DictPopover({ word, sentence, anchor, onClose, sessionId
     }
   }, [word, sentence, attempt])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose()
-    }
-    const onMouseDown = (e: MouseEvent) => {
-      const t = e.target as Node | null
-      if (!t) return
-      if (ref.current && ref.current.contains(t)) return
-      if (t instanceof Element && t.closest(".word-chip")) return
-      onClose()
-    }
-    window.addEventListener("keydown", onKey)
-    window.addEventListener("mousedown", onMouseDown)
-    return () => {
-      window.removeEventListener("keydown", onKey)
-      window.removeEventListener("mousedown", onMouseDown)
-    }
-  }, [onClose])
-
   const addVocab = async () => {
     if (!state.entry) return
     try {
@@ -76,36 +57,48 @@ export default function DictPopover({ word, sentence, anchor, onClose, sessionId
   }
 
   return (
-    <div
-      className="popover"
-      ref={ref}
-      style={{ position: "fixed", left: Math.min(anchor.left, window.innerWidth - 300), top: anchor.bottom + 8 }}
-      role="dialog"
-      aria-label={`词意：${word}`}
-    >
-      {state.status === "loading" && <p className="muted">查询中…</p>}
-      {state.status === "error" && (
-        <>
-          <p>{state.error}</p>
-          <button className="btn btn-secondary" style={{ minHeight: 32 }} onClick={() => setAttempt(a => a + 1)}>
-            重试
-          </button>
-        </>
-      )}
-      {state.status === "ready" && state.entry && (
-        <>
-          <div className="row">
-            <b>{word}</b>
-            {state.entry.phonetic ? <span className="muted">{state.entry.phonetic}</span> : null}
-            {state.entry.pos ? <span className="chip">{state.entry.pos}</span> : null}
-          </div>
-          <div>{state.entry.meaning}</div>
-          {state.entry.example ? <p className="muted">{state.entry.example}</p> : null}
-          <button className="btn btn-secondary mt-2" style={{ minHeight: 32 }} disabled={addState === "done"} onClick={addVocab}>
-            {addState === "done" ? "已在生词本" : addState === "error" ? "加入失败，重试" : "加入生词本"}
-          </button>
-        </>
-      )}
-    </div>
+    <Popover.Root open onOpenChange={(open) => { if (!open) onClose() }}>
+      <Popover.Anchor asChild>
+        <span style={{ position: "fixed", left: anchor.left, top: anchor.bottom, width: 1, height: 1 }} />
+      </Popover.Anchor>
+      <Popover.Portal>
+        <Popover.Content
+          className="popover"
+          side="bottom"
+          align="start"
+          sideOffset={8}
+          collisionPadding={8}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => {
+            if (e.target instanceof Element && e.target.closest(".word-chip")) e.preventDefault()
+          }}
+          aria-label={`词意：${word}`}
+        >
+          {state.status === "loading" && <p className="muted">查询中…</p>}
+          {state.status === "error" && (
+            <>
+              <p>{state.error}</p>
+              <button className="btn btn-secondary" style={{ minHeight: 32 }} onClick={() => setAttempt(a => a + 1)}>
+                重试
+              </button>
+            </>
+          )}
+          {state.status === "ready" && state.entry && (
+            <>
+              <div className="row">
+                <b>{word}</b>
+                {state.entry.phonetic ? <span className="muted">{state.entry.phonetic}</span> : null}
+                {state.entry.pos ? <span className="chip">{state.entry.pos}</span> : null}
+              </div>
+              <div>{state.entry.meaning}</div>
+              {state.entry.example ? <p className="muted">{state.entry.example}</p> : null}
+              <button className="btn btn-secondary mt-2" style={{ minHeight: 32 }} disabled={addState === "done"} onClick={addVocab}>
+                {addState === "done" ? "已在生词本" : addState === "error" ? "加入失败，重试" : "加入生词本"}
+              </button>
+            </>
+          )}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }

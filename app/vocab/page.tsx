@@ -1,5 +1,6 @@
 "use client"
 
+import { List, ListItem } from "konsta/react"
 import { useEffect, useState } from "react"
 import { relativeTime } from "@/lib/format"
 import { VocabStatus, VocabWord } from "@/lib/domain/types"
@@ -27,25 +28,27 @@ export default function VocabPage() {
       <h3>生词本（{words.length}）</h3>
       {words.length === 0 && <p className="muted">暂无生词。完成一次练习并在报告中采纳候选后，这里会有内容。</p>}
       {words.length > 0 && (
-        <div className="ios-grouped-list">
+        <List inset className="ios-grouped-list">
           {words.map(w => (
-            <div key={w.id} className="ios-grouped-row">
-              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-                <div><b style={{ fontWeight: 700 }}>{w.word}</b> <span className="muted">{w.translation}</span></div>
-                <div className="muted" style={{ fontStyle: "italic" }}>{w.example}</div>
-                <div className="muted" style={{ fontSize: 12 }}>已使用 {w.timesEncountered} 次{w.lastUsedAt ? ` · 上次使用 ${relativeTime(w.lastUsedAt)}` : ""}</div>
+            <ListItem key={w.id}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%", minWidth: 0 }}>
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div><b style={{ fontWeight: 700 }}>{w.word}</b> <span className="muted">{w.translation}</span></div>
+                  <div className="muted" style={{ fontStyle: "italic" }}>{w.example}</div>
+                  <div className="muted" style={{ fontSize: 12 }}>已使用 {w.timesEncountered} 次{w.lastUsedAt ? ` · 上次使用 ${relativeTime(w.lastUsedAt)}` : ""}</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                  <select className={"vocab-status-pill " + w.status} style={{ width: "auto", minHeight: 32 }} aria-label={`状态：${w.word}`} value={w.status} onChange={e => change(w.id, e.target.value as VocabStatus)}>
+                    {(["new", "learning", "mastered", "ignored"] as VocabStatus[]).map(s => (
+                      <option key={s} value={s}>{statusLabel[s]}</option>
+                    ))}
+                  </select>
+                  <button type="button" className="btn" style={{ minHeight: 32, padding: "4px 12px", fontSize: 13, background: "var(--tint-red)", color: "var(--ios-red)", boxShadow: "none" }} onClick={() => remove(w.id)}>删除</button>
+                </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                <select className={"vocab-status-pill " + w.status} style={{ width: "auto", minHeight: 32 }} aria-label={`状态：${w.word}`} value={w.status} onChange={e => change(w.id, e.target.value as VocabStatus)}>
-                  {(["new", "learning", "mastered", "ignored"] as VocabStatus[]).map(s => (
-                    <option key={s} value={s}>{statusLabel[s]}</option>
-                  ))}
-                </select>
-                <button type="button" className="btn" style={{ minHeight: 32, padding: "4px 12px", fontSize: 13, background: "var(--tint-red)", color: "var(--ios-red)", boxShadow: "none" }} onClick={() => remove(w.id)}>删除</button>
-              </div>
-            </div>
+            </ListItem>
           ))}
-        </div>
+        </List>
       )}
     </div>
   )

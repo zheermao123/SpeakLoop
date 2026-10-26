@@ -1,6 +1,7 @@
 "use client"
 
 import { Microphone, Stop } from "@phosphor-icons/react"
+import { motion } from "framer-motion"
 import { useRef, useState } from "react"
 
 export default function Recorder({ onRecorded, disabled }: { onRecorded: (b: Blob) => void; disabled?: boolean }) {
@@ -39,18 +40,19 @@ export default function Recorder({ onRecorded, disabled }: { onRecorded: (b: Blo
 
   return (
     <div>
-      <button
+      <motion.button
         type="button"
         className={recording ? "record-btn is-recording" : "record-btn"}
         onClick={toggle}
         disabled={disabled}
         aria-pressed={recording}
+        whileTap={{ scale: 0.96 }}
       >
         {recording
           ? <Stop size={20} weight="fill" aria-hidden="true" />
           : <Microphone size={20} aria-hidden="true" />}
         {recording ? "停止录音" : "说话"}
-      </button>
+      </motion.button>
       <span aria-live="polite" className="muted" style={{ display: recording ? "block" : "none" }}>
         录音中…
       </span>

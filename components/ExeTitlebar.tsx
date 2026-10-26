@@ -1,5 +1,7 @@
 "use client"
 
+import { Squircle } from "@squircle-js/react"
+import { motion } from "framer-motion"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -110,21 +112,23 @@ export default function ExeTitlebar() {
               whiteSpace: "nowrap",
             }}
           >
-            <span
+            <Squircle
               aria-hidden="true"
+              width={28}
+              height={28}
+              cornerRadius={9}
+              cornerSmoothing={0.8}
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: 8,
-                background: "var(--ios-blue)",
+                background: "linear-gradient(135deg, #007AFF, #0062CC)",
                 color: "#fff",
                 fontWeight: 700,
                 display: "grid",
                 placeItems: "center",
+                flexShrink: 0,
               }}
             >
               S
-            </span>
+            </Squircle>
             SpeakLoop
           </Link>
         </div>
@@ -146,11 +150,13 @@ export default function ExeTitlebar() {
         </nav>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          <button
+          <motion.button
             type="button"
             className="chip no-drag"
             aria-label={pillLabel}
             onClick={handlePillClick}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 500, damping: 30 }}
             style={{
               border: 0,
               padding: "6px 12px",
@@ -162,7 +168,7 @@ export default function ExeTitlebar() {
             }}
           >
             {pill.text}
-          </button>
+          </motion.button>
           <Link
             href="/scenarios"
             className="btn no-drag"
