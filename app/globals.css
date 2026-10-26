@@ -95,6 +95,10 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+html.electron body {
+  background: rgba(242, 242, 247, 0.72);
+}
+
 h1, h2, h3 { font-weight: 700; letter-spacing: -0.02em; }
 
 a { color: var(--tint); }
@@ -500,17 +504,7 @@ label.field {
 }
 
 .voice-dot-ready { background: var(--ios-green); }
-.voice-dot-loading { background: var(--ios-orange); animation: voice-pulse 1.2s ease-in-out infinite; }
 .voice-dot-offline { background: var(--ios-red); }
-
-@keyframes voice-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .voice-dot-loading { animation: none; }
-}
 
 /* ── Recording Button ───────────────────────────────────────────────────── */
 
@@ -535,16 +529,6 @@ label.field {
 .record-btn:active { transform: scale(0.96); }
 .record-btn.is-recording {
   background: var(--ios-red);
-  animation: record-pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes record-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.3); }
-  50% { box-shadow: 0 0 0 8px rgba(255, 59, 48, 0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .record-btn.is-recording { animation: none; }
 }
 
 /* ── Icon Button (transparent, inline) ──────────────────────────────────── */

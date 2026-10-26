@@ -249,6 +249,8 @@ function createWindow() {
   win = new BrowserWindow({
     show: false,
     frame: false,
+    backgroundMaterial: "mica",
+    vibrancy: "under-window",
     width: 1120,
     height: 760,
     minWidth: 920,
