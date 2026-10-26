@@ -25,6 +25,8 @@ export function useVoiceStatus(): VoiceStatus {
 
   useEffect(() => {
     let stopped = false
+    let quick = 2
+    let quickTimer: ReturnType<typeof setTimeout> | null = null
     const poll = async () => {
       try {
         const r = await fetch("/api/voice-status")
@@ -33,6 +35,11 @@ export function useVoiceStatus(): VoiceStatus {
         if (stopped) return
         setProbes(j)
         setNow(Date.now())
+        const allOff = (j.stt === "offline" || j.stt === "disabled") && (j.tts === "offline" || j.tts === "disabled")
+        if (allOff && quick > 0) {
+          quick -= 1
+          quickTimer = setTimeout(poll, 1500)
+        }
         for (const k of ["stt", "tts"] as const) {
           if (j[k] === "loading" && !since.current[k]) since.current[k] = Date.now()
           if (j[k] !== "loading") since.current[k] = undefined
@@ -50,6 +57,7 @@ export function useVoiceStatus(): VoiceStatus {
       stopped = true
       clearInterval(timer)
       clearInterval(tick)
+      if (quickTimer) clearTimeout(quickTimer)
     }
   }, [refreshKey])
 

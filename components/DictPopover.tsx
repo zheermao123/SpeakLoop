@@ -68,6 +68,7 @@ export default function DictPopover({ word, sentence, anchor, onClose, sessionId
           align="start"
           sideOffset={8}
           collisionPadding={8}
+          style={{ width: "auto", minWidth: 220, maxWidth: 300 }}
           onOpenAutoFocus={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => {
             if (e.target instanceof Element && e.target.closest(".word-chip")) e.preventDefault()

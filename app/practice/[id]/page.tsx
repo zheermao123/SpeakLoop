@@ -344,15 +344,17 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                   onClick={e => { if (!(e.target as HTMLElement).closest(".word-chip")) { setZhShown(prev => (prev === g ? null : g)); ensureZh(g) } }}
                 >
                   <span className="goal-checkbox" aria-hidden="true">{goalProgress.includes(i) ? "✓" : ""}</span>
-                  {i}. <WordText text={g} onWordClick={handleWordClick(g)} activeWord={dict?.word} />
+                  <div className="goal-main">
+                    {i}. <WordText text={g} onWordClick={handleWordClick(g)} activeWord={dict?.word} />
+                    {zhShown === g && zhMap[g] && <div className="zh-line"><span className="zh-label">译文</span>{zhMap[g]}</div>}
+                  </div>
                   <SpeakButton onSpeak={() => speakNow(`goal-${i}`, g)} label={`朗读目标 ${i}`} status={speakStatusOf(`goal-${i}`)} />
-                  {zhShown === g && zhMap[g] && <div className="zh-line"><span className="zh-label">译文</span>{zhMap[g]}</div>}
                 </div>
               ))}
             </div>
           </div>
         </div>
-        <div>
+        <div className="practice-right-col">
           {ttsDown && <span className="chip">语音服务离线（文字模式）</span>}
           <div className="bubble-stream">
             {bubbles.map((b, i) => {
@@ -386,6 +388,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                 </div>
               )
             })}
+            {bubbles.length === 0 && (
+              <p className="muted" style={{ textAlign: "center", marginTop: 48 }}>
+                开始对话吧——点击说话录音，或用键盘输入英文
+              </p>
+            )}
           </div>
           {phase && (
             <p className="phase-timer-bar" aria-live="polite">
