@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { VoiceProbe } from "@/lib/voice-status"
@@ -25,7 +25,7 @@ export function useVoiceStatus(): VoiceStatus {
 
   useEffect(() => {
     let stopped = false
-    let quick = 2
+    let quick = 5
     let quickTimer: ReturnType<typeof setTimeout> | null = null
     const poll = async () => {
       try {
