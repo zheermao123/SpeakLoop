@@ -187,8 +187,6 @@ function startVoiceServices() {
         "-File",
         path.join(scriptsDir(), "start-all.ps1"),
         "-Silent",
-        "-NoBrowser",
-        "-NoNext",
       ],
       {
         env: { ...process.env, SPEAKLOOP_REPO_ROOT: repoRootForScripts() },

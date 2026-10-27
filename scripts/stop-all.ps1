@@ -1,6 +1,6 @@
 ﻿# scripts/stop-all.ps1 —— 停止 SpeakLoop 全栈（无窗口）
 param([switch]$Quiet)
-foreach ($port in 8100, 8101, 3000) {
+foreach ($port in 8100, 8101) {
   try {
     $pids = (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue).OwningProcess |
       Select-Object -Unique

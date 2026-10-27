@@ -7,7 +7,6 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "doctor": "node scripts/doctor.mjs",
