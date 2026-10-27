@@ -1,5 +1,5 @@
 ﻿# scripts/start-all.ps1 —— SpeakLoop 语音双服务启动器（无窗口）
-# 用法：双击根目录 启动SpeakLoop.vbs；或 powershell -File scripts/start-all.ps1 [-Silent]
+# 用法：由 Electron 桌面端自动调用，或手动运行以启动语音双服务
 param([switch]$Silent)
 $ErrorActionPreference = "Continue"
 $root = if ($env:SPEAKLOOP_REPO_ROOT) { $env:SPEAKLOOP_REPO_ROOT } else { Split-Path $PSScriptRoot -Parent }

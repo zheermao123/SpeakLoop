@@ -21,7 +21,7 @@ const COMPACT_BUTTON: CSSProperties = {
   fontSize: 13,
 }
 
-const HELP_TEXT = "双击 启动SpeakLoop.vbs 启动器，或查看 logs/ 目录并重新运行 npm run start"
+const HELP_TEXT = "开发模式：运行 scripts/start-all.ps1 启动语音服务；详见 logs/ 目录日志"
 
 export function VoiceBanner() {
   const voice = useVoiceStatus()

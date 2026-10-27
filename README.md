@@ -43,7 +43,7 @@ Next.js 全栈（薄路由 → services 业务层 → json-store 存储）
 **使用（推荐）**
 
 1. 部署 ai-server 双服务（首次下载权重 ~5GB，见 `docs/superpowers/plans/2026-10-01-speakloop-phase0-ai-server.md`）
-2. 安装 `dist/SpeakLoop Setup 0.1.0.exe`（或直接运行 `dist/win-unpacked/SpeakLoop.exe`）
+2. 运行 `dist` 目录下的 `SpeakLoop Setup` 安装包（或直接运行 `dist/win-unpacked/SpeakLoop.exe`）
 3. 配置 `.env`（STT/TTS/CHAT 三项 provider，见配置说明），或安装后在应用内 `/settings` 配置
 4. 启动应用：语音服务由应用自动拉起（冷加载约 2 分钟，界面有预热状态提示）；关闭窗口即退出并清理全部服务
 
@@ -107,11 +107,13 @@ Next.js 全栈（薄路由 → services 业务层 → json-store 存储）
 
 | 命令 | 用途 |
 |---|---|
-| `npm test` | 单元测试（120 个，假件位于 tests/fixtures，生产零 mock） |
+| `npm test` | 单元测试（124 个，假件位于 tests/fixtures，生产零 mock） |
 | `npm run typecheck` | 全量类型检查 |
 | `npm run build` | 生产构建 |
 | `npm run doctor` | 环境自检（Node/数据目录/双服务健康/GPU） |
-| `node scripts/browser-check.mjs` | 开发工具（需 `npm run dev`）：真实浏览器 E2E 走查（需 Playwright + 服务在线） |
+| `node scripts/browser-check.mjs` | 开发工具：真实浏览器 E2E 走查（需 `npm run dev`） |
+| `node scripts/acceptance-check.mjs` | 开发工具：13 项验收检查（需 `npm run dev`） |
+| `node scripts/console-check.mjs` | 开发工具：四页控制台零错误检查（需 `npm run dev`） |
 
 ## 已知限制
 

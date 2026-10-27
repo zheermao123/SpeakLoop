@@ -361,7 +361,7 @@ async function stopListeningPorts(ports) {
 }
 
 async function stopVoiceServices() {
-  await stopListeningPorts([3000, 8100, 8101])
+  await stopListeningPorts([8100, 8101])
 }
 
 app.on("before-quit", e => {

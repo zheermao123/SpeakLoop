@@ -1,4 +1,4 @@
-﻿# scripts/stop-all.ps1 —— 停止 SpeakLoop 全栈（无窗口）
+﻿# scripts/stop-all.ps1 —— 停止语音双服务（8100/8101；供手动停止使用，Electron 退出时由主进程直接清理端口）
 param([switch]$Quiet)
 foreach ($port in 8100, 8101) {
   try {
