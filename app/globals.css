@@ -773,9 +773,8 @@ label.field {
 }
 
 .exe-titlebar-inner {
-  max-width: 1040px;
-  margin: 0 auto;
-  height: 56px;
+  height: var(--h-nav);
+  padding: 0 16px;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -932,4 +931,121 @@ label.field {
 @media (max-width: 900px) {
   .practice-grid { grid-template-columns: 1fr; }
   .practice-left-col { position: static; }
+}
+
+/* ── Sidebar shell (Workbench v3) ────────────────────────────────────────── */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+}
+
+.sidebar {
+  width: 232px;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border-right: 1px solid var(--separator-soft);
+  display: flex;
+  flex-direction: column;
+  padding: 12px 10px;
+  gap: 4px;
+  position: sticky;
+  top: var(--h-nav);
+  height: calc(100vh - var(--h-nav));
+  overflow-y: auto;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 12px;
+}
+
+.sidebar-brand-name {
+  font-weight: 600;
+  color: var(--label);
+  white-space: nowrap;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  min-height: 40px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--label);
+  text-decoration: none;
+  transition: background 120ms ease;
+}
+
+.sidebar-item:hover { background: rgba(0, 0, 0, 0.03); }
+.sidebar-item.active { background: rgba(0, 0, 0, 0.05); }
+
+.sidebar-badge {
+  margin-left: auto;
+  background: var(--fill-1);
+  color: var(--label-2);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--separator-soft);
+}
+
+.sidebar-voice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--label-2);
+  white-space: nowrap;
+}
+
+.sidebar-voice-restore {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--tint);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.sidebar-voice-restore:hover { background: var(--fill-3); }
+.sidebar-voice-restore:disabled { opacity: 0.6; cursor: default; }
+
+.voice-dot-loading { background: var(--ios-orange); }
+
+.content {
+  flex: 1;
+  min-width: 0;
+  max-width: 1200px;
+  padding: 32px;
+  margin: 0 auto;
 }
