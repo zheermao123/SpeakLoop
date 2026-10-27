@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
 import ExeTitlebar from "@/components/ExeTitlebar"
-import Heartbeat from "@/components/Heartbeat"
 import KonstaApp from "@/components/KonstaApp"
 import "./globals.css"
 
@@ -11,7 +10,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh">
       <body>
         <KonstaApp>
-          <Heartbeat />
           <ExeTitlebar />
           <main className="container">{children}</main>
         </KonstaApp>

@@ -139,7 +139,6 @@ function spawnNextServer(port) {
       PORT: String(port),
       HOSTNAME: "127.0.0.1",
       DATA_DIR: path.join(userDataDir, "data"),
-      AUTO_STOP: "0",
     },
     windowsHide: true,
     stdio: "ignore",
