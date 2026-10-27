@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 /* ==========================================================================
-   SpeakLoop — Apple HIG Design System (v2.0)
-   Light mode · SF-compatible stack · Inset Grouped · Frosted materials
+   SpeakLoop — Workbench Design System (v3.0)
+   Light mode · SF-compatible stack · Warm amber brand accent · Frosted dock
    ========================================================================== */
 
 :root {
@@ -22,17 +22,28 @@
   --ios-yellow: #ffcc00;
   --ios-gray: #8e8e93;
 
-  --tint: var(--ios-blue);
+  --tint: #007aff;
+
+  /* Workbench brand */
+  --brand-grad: linear-gradient(135deg, #ffb800, #ff9500);
+  --bubble-user-color: #5b5bd6;
+
+  /* Badge colors */
+  --badge-amber: #ffb300;
+  --badge-orange: #ff7847;
+  --badge-indigo: #5b5bd6;
+  --badge-green: #34c759;
+  --badge-blue: #007aff;
 
   /* Grouped Background */
-  --bg-grouped: #f2f2f7;
+  --bg-grouped: #f5f5f7;
   --bg-card: #ffffff;
   --bg-inset: rgba(118, 118, 128, 0.12);
-  --bg-secondary: rgba(242, 242, 247, 0.65);
+  --bg-secondary: rgba(245, 245, 247, 0.65);
 
   /* Label Colors */
-  --label: #000000;
-  --label-2: rgba(60, 60, 67, 0.6);
+  --label: #1d1d1f;
+  --label-2: #86868b;
   --label-3: rgba(60, 60, 67, 0.3);
   --label-4: rgba(60, 60, 67, 0.18);
 
@@ -53,7 +64,8 @@
   --material-blur: saturate(180%) blur(20px);
 
   /* Shadows */
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.05);
+  --shadow-hero: 0 12px 32px rgba(255, 169, 0, 0.22);
   --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.03);
   --shadow-dock: 0 -1px 0 var(--separator-soft), 0 -4px 20px rgba(0, 0, 0, 0.04);
 
@@ -62,6 +74,7 @@
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
+  --radius-hero: 20px;
   --radius-pill: 999px;
 
   /* Spacing — 4pt grid */
@@ -82,7 +95,7 @@
   --h-nav: 48px;
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--fill-1) transparent; }
 
 body {
   margin: 0;
@@ -96,7 +109,7 @@ body {
 }
 
 html.electron body {
-  background: rgba(242, 242, 247, 0.72);
+  background: rgba(245, 245, 247, 0.72);
 }
 
 h1, h2, h3 { font-weight: 700; letter-spacing: -0.02em; }
@@ -112,7 +125,6 @@ a { color: var(--tint); }
 
 ::selection { background: rgba(0, 122, 255, 0.2); }
 
-* { scrollbar-width: thin; scrollbar-color: var(--fill-1) transparent; }
 *::-webkit-scrollbar { width: 6px; height: 6px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb { background: var(--fill-1); border-radius: 3px; }
@@ -312,7 +324,7 @@ label.field {
 }
 
 .bubble-user {
-  background: var(--tint);
+  background: var(--bubble-user-color);
   color: #ffffff;
   margin-left: auto;
   border-bottom-right-radius: 6px;
@@ -372,10 +384,11 @@ label.field {
   line-height: 1.4;
 }
 
-.pill-gray  { background: var(--fill-1); color: var(--label-2); }
-.pill-blue  { background: rgba(0, 122, 255, 0.12); color: var(--ios-blue); }
-.pill-green { background: rgba(52, 199, 89, 0.12); color: #248a3d; }
-.pill-orange { background: rgba(255, 149, 0, 0.12); color: #c93400; }
+/* 12% tint bg + same-color text (未学=蓝 / 认识中=橙 / 已掌握=绿 / 已忽略=灰) */
+.pill-gray  { background: var(--fill-3); color: var(--label-2); }
+.pill-blue  { background: rgba(0, 122, 255, 0.12); color: var(--tint); }
+.pill-green { background: rgba(52, 199, 89, 0.12); color: var(--ios-green); }
+.pill-orange { background: rgba(255, 149, 0, 0.12); color: var(--ios-orange); }
 .pill-red   { background: rgba(255, 59, 48, 0.1); color: var(--ios-red); }
 
 /* ── Stat Number ────────────────────────────────────────────────────────── */
@@ -888,21 +901,21 @@ label.field {
 
 .vocab-status-pill.new {
   background: rgba(0, 122, 255, 0.12);
-  color: var(--ios-blue);
+  color: var(--badge-blue);
 }
 
 .vocab-status-pill.learning {
   background: rgba(255, 149, 0, 0.12);
-  color: #c93400;
+  color: var(--ios-orange);
 }
 
 .vocab-status-pill.mastered {
   background: rgba(52, 199, 89, 0.12);
-  color: #248a3d;
+  color: var(--ios-green);
 }
 
 .vocab-status-pill.ignored {
-  background: var(--fill-1);
+  background: var(--fill-3);
   color: var(--label-2);
 }
 
