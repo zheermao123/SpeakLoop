@@ -1,6 +1,6 @@
 ﻿# SpeakLoop
 
-浏览器里的 **AI 英语口语私教**：围绕职场真实场景进行语音对话练习，每次练习后给出纠错复盘报告，并把生词带回后续对话中反复使用。
+Windows 桌面端的 **AI 英语口语私教**（Electron 应用）：围绕职场真实场景进行语音对话练习，每次练习后给出纠错复盘报告，并把生词带回后续对话中反复使用。
 
 **闭环：学 → 用 → 反馈 → 再用。**
 
@@ -19,7 +19,7 @@
 ## 系统架构
 
 ```
-浏览器（React UI，MediaRecorder 录音 / 键盘输入）
+Electron 窗口（React UI，MediaRecorder 录音 / 键盘输入）
    │ fetch /api/*
 Next.js 全栈（薄路由 → services 业务层 → json-store 存储）
    │ Provider 抽象（qwen3-local / openai-compatible 按 .env 配置）
@@ -32,6 +32,7 @@ Next.js 全栈（薄路由 → services 业务层 → json-store 存储）
 
 | 组件 | 要求 |
 |---|---|
+| 操作系统 | Windows 10/11（Mica 透光需 Windows 11） |
 | Node.js | ≥ 20 |
 | GPU | NVIDIA 8GB+（实测 3070 占用 ~5.6GB，语音必需） |
 | Python | conda 双环境（语音必需，部署见计划文档） |
@@ -39,15 +40,20 @@ Next.js 全栈（薄路由 → services 业务层 → json-store 存储）
 
 ## 快速开始
 
+**使用（推荐）**
+
 1. 部署 ai-server 双服务（首次下载权重 ~5GB，见 `docs/superpowers/plans/2026-10-01-speakloop-phase0-ai-server.md`）
-2. 配置 `.env`（STT/TTS/CHAT 三项 provider，见配置说明）
-3. 双击 `启动SpeakLoop.vbs`，或 `npm run doctor` 自检后 `npm run start`
+2. 安装 `dist/SpeakLoop Setup 0.1.0.exe`（或直接运行 `dist/win-unpacked/SpeakLoop.exe`）
+3. 配置 `.env`（STT/TTS/CHAT 三项 provider，见配置说明），或安装后在应用内 `/settings` 配置
+4. 启动应用：语音服务由应用自动拉起（冷加载约 2 分钟，界面有预热状态提示）；关闭窗口即退出并清理全部服务
 
-打开 http://localhost:3000 —— 完整流程：语音对话 → 目标进度 → 练后报告 → 生词闭环。
+完整流程：语音对话 → 目标进度 → 练后报告 → 生词闭环。
 
-## 一键启动（推荐）
+## 开发调试
 
-双击根目录 **`启动SpeakLoop.vbs`**：无窗口拉起 ai-server 双服务 + Next.js，就绪后自动打开浏览器（语音预热约 2-3 分钟）。**关闭浏览器约 5 秒后自动停止全栈**（离页信标 + 5s 宽限——刷新/关闭其中一个标签均不误停；异常退出兜底 ≤75s（含后台标签节流容忍）；`AUTO_STOP=0` 关闭，`AUTO_STOP_IDLE_MS` 调兜底阈值）。**`停止SpeakLoop.vbs`** 手动立即停止。日志见 `logs/`。
+- `npm run doctor` 环境自检（Node/数据目录/双服务健康/GPU）
+- `npm run dev`（:3000）+ `npm run electron:dev`（Electron 加载 dev 服务）
+- `npm run build:exe` 打包桌面版
 
 ## 桌面版 EXE
 
@@ -105,13 +111,13 @@ Next.js 全栈（薄路由 → services 业务层 → json-store 存储）
 | `npm run typecheck` | 全量类型检查 |
 | `npm run build` | 生产构建 |
 | `npm run doctor` | 环境自检（Node/数据目录/双服务健康/GPU） |
-| `node scripts/browser-check.mjs` | 真实浏览器 E2E 走查（需 Playwright + 服务在线） |
+| `node scripts/browser-check.mjs` | 开发工具（需 `npm run dev`）：真实浏览器 E2E 走查（需 Playwright + 服务在线） |
 
 ## 已知限制
 
 - 整段语音合成感知延迟 ~13s（STT 1.6s + LLM 0.8s + TTS 合成 ~10.9s，3070 实测）——界面有分相位耗时指示器；优化候选：0.6B 模型对比 / int8 量化
 - 语音预热约 2-3 分钟（模型冷载），期间文字模式可用；首页与对话页有 STT/TTS 双行预热状态（就绪/预热中·计时/离线·恢复指引/异常超 240s）
-- 桌面端优先，移动端未深度适配
+- 仅支持 Windows 桌面端（无移动端/浏览器版本）
 - 语音服务需本机 conda 双环境（ASR/TTS 各一），模型不入 EXE，换机需重新部署
 - Mica 硬件透光仅在 Windows 11 完整生效，Windows 10 及更早为不透明背景
 - NSIS 首次构建需联网下载 Electron 二进制（体积大，耗时取决于网络）
