@@ -1,6 +1,6 @@
 ﻿# SpeakLoop 设计文档
 
-- 日期：2026-10-01（v1.6：视觉方向重构为 iOS/Apple HIG + Electron 桌面端交付；历史沿革见各勘误记录 `docs/superpowers/plans/*erratum*.md`）
+- 日期：2026-10-01（v1.7：全站视觉改版为 **Workbench 桌面工作台**，§8/§8.1 iOS HIG 已退役——见 `specs/2026-10-27-speakloop-workbench-ui-design.md`；v1.6 沿革：iOS/Apple HIG + Electron 桌面端；历史勘误见 `docs/superpowers/plans/*erratum*.md`）
 - 状态：已确认
 - 仓库：E:\EnglishDemo（全新仓库，本设计为首个交付物）
 
@@ -319,7 +319,7 @@ MVP 对策（均已纳入）：文字先显 + TTS 异步播放（感知延迟≈
 - **打包**：electron-builder NSIS（仅安装版）；图标蓝底 S（512px PNG）
 ## 8. UI 页面
 
-（v1.6：全站 iOS HIG 视觉；练习页改为双栏布局；顶栏含分段导航与语音胶囊）
+（v1.7：本章页面内容表仍生效，但视觉规范 §8.1 **已被 Workbench v3.0 取代**——见 `specs/2026-10-27-speakloop-workbench-ui-design.md`；顶栏分段导航退役，改为左侧栏）
 
 | 路由 | 内容 |
 |---|---|
@@ -330,7 +330,7 @@ MVP 对策（均已纳入）：文字先显 + TTS 异步播放（感知延迟≈
 | `/vocab` | 生词列表（状态、来源场次、使用次数、lastUsedAt）、标记掌握、删除 |
 | `/settings` | 应用内设置（MVP-2.1）：Chat（BaseURL/Key/Model）、语音服务地址、TTS 默认音色；Key 永不明文回显（仅尾 4 位）；三区测试连接 |
 
-### 8.1 视觉设计（iOS / Apple HIG，v1.6 重构；Claymorphism 已退役）
+### 8.1 视觉设计（iOS / Apple HIG，v1.6 重构；**v1.7 起已退役**，由 Workbench v3.0 取代；Claymorphism 更早已退役）
 
 依据：用户提供的 iOS 模板（Apple HIG 浅色模式）；视觉数值以模板为准。
 

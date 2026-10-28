@@ -20,7 +20,8 @@
 
 | 文档 | 版本 | 状态 |
 |---|---|---|
-| `specs/2026-10-01-speakloop-design.md` | **v1.6**（iOS HIG + Electron 桌面端；含对比度例外备案） | 生效中 |
+| `specs/2026-10-01-speakloop-design.md` | **v1.7**（视觉章已被 v3.0 取代，其余章节生效） | 生效中 |
+| `specs/2026-10-27-speakloop-workbench-ui-design.md` | **v3.0**（Workbench 桌面工作台，含 HTML 预览与修订备案） | 生效中（视觉唯一来源） |
 
 ## 计划与状态
 
@@ -39,7 +40,8 @@
 | `plans/2026-10-18-speakloop-translation-fixes.md` | 翻译修复 F1/F2/F3 | ✅ 已完成并验收（13/13） |
 | `plans/2026-10-18-speakloop-tts-progress.md` | 朗读进度 + 队列防死 + 失败反馈 | ✅ 已完成并验收 |
 | `plans/2026-10-19-speakloop-auto-stop-race-fix.md` | 自动停止竞态修复（心跳 2s/兜底 75s） | ✅ 已完成并验收 |
-| `plans/2026-10-25-speakloop-ios-electron.md` | **iOS HIG 重构 + Electron EXE** | 🚧 **待执行**（当前任务） |
+| `plans/2026-10-25-speakloop-ios-electron.md` | iOS HIG 重构 + Electron EXE | ✅ 已完成并验收（视觉被 v3.0 取代） |
+| `plans/2026-10-27-speakloop-workbench-ui.md` | **Workbench v3.0 全站改版** | 🚧 **待执行**（当前任务） |
 | `reports/2026-10-01-ai-server-spike-results.md` | ai-server 实测数据（显存/延迟/双进程） | 📜 存档（240s 预热阈值与 10.44s TTS 基线依据） |
 
 ## 勘误链（按时间）
