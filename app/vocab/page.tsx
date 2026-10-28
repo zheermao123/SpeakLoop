@@ -69,8 +69,8 @@ export default function VocabPage() {
                     width: 22,
                     height: 22,
                     borderRadius: "50%",
-                    border: `2px solid ${w.status === "mastered" ? "var(--ios-green)" : "rgba(0, 0, 0, 0.15)"}`,
-                    background: w.status === "mastered" ? "var(--ios-green)" : "transparent",
+                    border: `2px solid ${w.status === "mastered" ? "var(--badge-green)" : "rgba(0, 0, 0, 0.15)"}`,
+                    background: w.status === "mastered" ? "var(--badge-green)" : "transparent",
                     color: "#ffffff",
                     display: "grid",
                     placeItems: "center",
@@ -100,8 +100,8 @@ export default function VocabPage() {
                       width: 18,
                       height: 18,
                       borderRadius: "50%",
-                      border: "1.5px solid var(--ios-green)",
-                      background: w.status === "mastered" ? "var(--ios-green)" : "transparent",
+                      border: "1.5px solid var(--badge-green)",
+                      background: w.status === "mastered" ? "var(--badge-green)" : "transparent",
                       color: "#ffffff",
                       display: "grid",
                       placeItems: "center",
@@ -119,7 +119,7 @@ export default function VocabPage() {
                   <button
                     type="button"
                     className="btn"
-                    style={{ minHeight: 32, padding: "4px 12px", fontSize: 13, background: "rgba(255, 59, 48, 0.1)", color: "var(--ios-red)", boxShadow: "none" }}
+                    style={{ minHeight: 32, padding: "4px 12px", fontSize: 13, background: "rgba(255, 59, 48, 0.1)", color: "#FF3B30", boxShadow: "none" }}
                     onClick={() => remove(w.id)}
                   >
                     删除
