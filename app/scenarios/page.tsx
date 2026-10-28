@@ -6,10 +6,10 @@ import { useEffect, useState } from "react"
 import { Scenario } from "@/lib/domain/types"
 
 const scenarioTiles: Record<string, { Icon: typeof ChatCircleDots; color: string }> = {
-  "builtin-interview": { Icon: Briefcase, color: "#007AFF" },
-  "builtin-standup": { Icon: Presentation, color: "#5856D6" },
-  "builtin-oneonone": { Icon: Users, color: "#30B0C7" },
-  "builtin-smalltalk": { Icon: Coffee, color: "#FF9500" },
+  "builtin-interview": { Icon: Briefcase, color: "#5B5BD6" },
+  "builtin-standup": { Icon: Presentation, color: "#FFB300" },
+  "builtin-oneonone": { Icon: Users, color: "#34C759" },
+  "builtin-smalltalk": { Icon: Coffee, color: "#FF7847" },
 }
 
 const fieldStyle = { backgroundColor: "#ffffff", border: "1px solid rgba(0, 0, 0, 0.08)", borderRadius: 12 }

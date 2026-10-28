@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { relativeTime } from "@/lib/format"
 import { VocabStatus, VocabWord } from "@/lib/domain/types"
 
-const statusLabel: Record<VocabStatus, string> = { new: "新词", learning: "学习中", mastered: "已掌握", ignored: "已忽略" }
+const statusLabel: Record<VocabStatus, string> = { new: "未学", learning: "认识中", mastered: "已掌握", ignored: "已忽略" }
 const statusOrder: VocabStatus[] = ["new", "learning", "mastered", "ignored"]
 
 export default function VocabPage() {
@@ -90,17 +90,29 @@ export default function VocabPage() {
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                  <select
-                    className={"vocab-status-pill " + w.status}
-                    style={{ width: "auto", minHeight: 32 }}
-                    aria-label={`状态：${w.word}`}
-                    value={w.status}
-                    onChange={e => change(w.id, e.target.value as VocabStatus)}
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={w.status === "mastered"}
+                    aria-label={`已掌握：${w.word}`}
+                    onClick={() => change(w.id, w.status === "mastered" ? "learning" : "mastered")}
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      border: "1.5px solid var(--ios-green)",
+                      background: w.status === "mastered" ? "var(--ios-green)" : "transparent",
+                      color: "#ffffff",
+                      display: "grid",
+                      placeItems: "center",
+                      padding: 0,
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
                   >
-                    {(["new", "learning", "mastered", "ignored"] as VocabStatus[]).map(s => (
-                      <option key={s} value={s}>{statusLabel[s]}</option>
-                    ))}
-                  </select>
+                    {w.status === "mastered" && <Check size={11} weight="bold" />}
+                  </button>
+                  <span className={"vocab-status-pill " + w.status}>{statusLabel[w.status]}</span>
                   <button type="button" className="icon-inline" aria-label={`发音：${w.word}`} onClick={() => speakWord(w.word)}>
                     <SpeakerHigh size={14} aria-hidden="true" />
                   </button>

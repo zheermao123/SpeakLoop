@@ -19,10 +19,10 @@ import { relativeTime } from "@/lib/format"
 import { Scenario, Session, VocabStatus, VocabWord } from "@/lib/domain/types"
 
 const scenarioTiles: Record<string, { Icon: typeof ChatCircleDots; color: string }> = {
-  "builtin-interview": { Icon: Briefcase, color: "#007AFF" },
-  "builtin-standup": { Icon: Presentation, color: "#5856D6" },
-  "builtin-oneonone": { Icon: Users, color: "#30B0C7" },
-  "builtin-smalltalk": { Icon: Coffee, color: "#FF9500" },
+  "builtin-interview": { Icon: Briefcase, color: "#5B5BD6" },
+  "builtin-standup": { Icon: Presentation, color: "#FFB300" },
+  "builtin-oneonone": { Icon: Users, color: "#34C759" },
+  "builtin-smalltalk": { Icon: Coffee, color: "#FF7847" },
 }
 
 const statusLabel: Record<VocabStatus, string> = {
