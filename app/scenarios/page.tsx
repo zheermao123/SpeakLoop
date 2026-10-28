@@ -1,8 +1,18 @@
 "use client"
 
+import { Briefcase, ChatCircleDots, Coffee, Presentation, Users } from "@phosphor-icons/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Scenario } from "@/lib/domain/types"
+
+const scenarioTiles: Record<string, { Icon: typeof ChatCircleDots; color: string }> = {
+  "builtin-interview": { Icon: Briefcase, color: "#007AFF" },
+  "builtin-standup": { Icon: Presentation, color: "#5856D6" },
+  "builtin-oneonone": { Icon: Users, color: "#30B0C7" },
+  "builtin-smalltalk": { Icon: Coffee, color: "#FF9500" },
+}
+
+const fieldStyle = { backgroundColor: "#ffffff", border: "1px solid rgba(0, 0, 0, 0.08)", borderRadius: 12 }
 
 const emptyDraft: Scenario = {
   id: "", title: "", persona: "", personaZh: "", goals: [], difficulty: "medium", builtin: false,
@@ -83,22 +93,41 @@ export default function ScenariosPage() {
 
   return (
     <div>
-      <h3>选择场景</h3>
+      <h1 style={{ margin: "0 0 20px", fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em" }}>选择场景</h1>
       {error && <div className="card"><span className="muted">{error}</span></div>}
-      {list.map(s => (
-        <div key={s.id} className="card row">
-          <div style={{ flex: 1 }}>
-            <b>{s.title}</b> <span className="chip">{s.difficulty}</span>
-            {s.personaZh && <div>{s.personaZh}</div>}
-            <div className="muted">{s.persona}</div>
+      {list.map(s => {
+        const tile = scenarioTiles[s.id] ?? { Icon: ChatCircleDots, color: "#8E8E93" }
+        const Icon = tile.Icon
+        return (
+          <div key={s.id} className="card" style={{ display: "flex", alignItems: "center", gap: 16, padding: "18px 20px" }}>
+            <span
+              aria-hidden="true"
+              style={{ width: 40, height: 40, borderRadius: 12, display: "grid", placeItems: "center", background: `${tile.color}1F`, color: tile.color, flexShrink: 0 }}
+            >
+              <Icon size={20} weight="fill" />
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>{s.title}</div>
+              <div className="muted" style={{ marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {s.personaZh || s.persona}
+              </div>
+            </div>
+            <span className="chip" style={{ flexShrink: 0 }}>{s.difficulty}</span>
+            <button
+              className="btn"
+              style={{ minHeight: 36, padding: "0 18px", borderRadius: 999, fontSize: 13, flexShrink: 0 }}
+              disabled={busy}
+              onClick={() => startPractice(s.id)}
+            >
+              开始练习
+            </button>
           </div>
-          <button className="btn" disabled={busy} onClick={() => startPractice(s.id)}>开始练习</button>
-        </div>
-      ))}
-      <h3>自定义场景</h3>
+        )
+      })}
+      <h3 style={{ margin: "28px 0 12px", fontSize: 20, letterSpacing: "-0.02em" }}>自定义场景</h3>
       <div className="card">
         <label className="field">场景描述 <span className="req">*</span></label>
-        <textarea className="input" rows={2} placeholder="用中文描述场景，如：和外国客户谈判交期"
+        <textarea className="input" style={fieldStyle} rows={2} placeholder="用中文描述场景，如：和外国客户谈判交期"
           value={description} onChange={e => setDescription(e.target.value)} />
         <button className="btn mt-2" disabled={busy || !description.trim()} onClick={genDraft}>
           生成草稿
@@ -106,18 +135,18 @@ export default function ScenariosPage() {
         {draft && (
           <div className="mt-3">
             <label className="field">标题 <span className="req">*</span></label>
-            <input className="input" value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} />
+            <input className="input" style={fieldStyle} value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} />
             <label className="field">AI 角色设定（英文） <span className="req">*</span></label>
-            <textarea className="input" rows={2} value={draft.persona}
+            <textarea className="input" style={fieldStyle} rows={2} value={draft.persona}
               onChange={e => setDraft({ ...draft, persona: e.target.value })} />
             <label className="field">AI 角色设定的中文翻译（选填——留空显示英文原文）</label>
-            <textarea className="input" rows={2} value={draft.personaZh ?? ""}
+            <textarea className="input" style={fieldStyle} rows={2} value={draft.personaZh ?? ""}
               onChange={e => setDraft({ ...draft, personaZh: e.target.value })} />
             <label className="field">练习目标（每行一个，英文） <span className="req">*</span></label>
-            <textarea className="input" rows={3} value={goalsText}
+            <textarea className="input" style={fieldStyle} rows={3} value={goalsText}
               onChange={e => setGoalsText(e.target.value)} />
             <label className="field">难度</label>
-            <select className="input" value={draft.difficulty}
+            <select className="input" style={fieldStyle} value={draft.difficulty}
               onChange={e => setDraft({ ...draft, difficulty: e.target.value as Scenario["difficulty"] })}>
               <option value="easy">easy</option><option value="medium">medium</option><option value="hard">hard</option>
             </select>

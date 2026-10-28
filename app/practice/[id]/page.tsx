@@ -364,6 +364,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                 <div
                   key={i}
                   className={`bubble ${b.role === "user" ? "bubble-user" : b.role === "ai" ? "bubble-ai" : "bubble-coach"}`}
+                  style={b.role === "ai" ? { border: "1px solid rgba(0, 0, 0, 0.06)" } : b.role === "coach" ? { background: "#FFF8E1", border: "1px solid #FFE082" } : undefined}
                   onMouseEnter={canTranslate && !busy ? () => { hoverTimer.current = setTimeout(() => { setZhShown(b.text); ensureZh(b.text) }, 300) } : undefined}
                   onMouseLeave={canTranslate ? () => { if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null }; setZhShown(null) } : undefined}
                 >

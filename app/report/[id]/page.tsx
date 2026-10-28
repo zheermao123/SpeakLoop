@@ -3,9 +3,14 @@
 import { SpeakerHigh } from "@phosphor-icons/react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
+import { CSSProperties } from "react"
 import { Report, Session } from "@/lib/domain/types"
 
 const typeLabel: Record<string, string> = { grammar: "语法", vocab: "用词", idiom: "地道表达" }
+const typePillClass: Record<string, string> = { grammar: "pill pill-red", vocab: "pill pill-orange", idiom: "pill" }
+const typePillStyle: Record<string, CSSProperties> = {
+  idiom: { background: "rgba(91, 91, 214, 0.12)", color: "var(--badge-indigo)" },
+}
 
 export default function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const [session, setSession] = useState<Session | null>(null)
@@ -73,50 +78,94 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div>
-      <h3>练习报告</h3>
-      <div className="card"><b>总评</b><p>{report.summary}</p></div>
+      <div className="card" style={{ padding: 24, borderRadius: "var(--radius-hero)", marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--label-2)", letterSpacing: "0.02em" }}>练习报告</div>
+        <p style={{ margin: "8px 0 0", fontSize: 21, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.45 }}>
+          {report.summary}
+        </p>
+      </div>
       {report.highlights.length > 0 && (
         <div className="card">
           <b>亮点</b>
-          <ul>{report.highlights.map((h, i) => <li key={i}>{h}</li>)}</ul>
+          <ul style={{ margin: "8px 0 0", paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+            {report.highlights.map((h, i) => (
+              <li key={i} style={{ fontSize: 14, lineHeight: 1.55 }}>{h}</li>
+            ))}
+          </ul>
         </div>
       )}
-      {report.corrections.map((c, i) => {
-        const turn = session.turns.find(t => t.id === c.turnId)
-        return (
-          <div key={i} className="card">
-            <span className="chip">{typeLabel[c.type] ?? c.type}</span>
-            <p>你说：{c.original}</p>
-            <p>建议：{c.improved}</p>
-            <p className="muted">{c.explanation}</p>
-            {turn?.audioUrl && (
-              <div className="row">
-                <SpeakerHigh size={20} aria-hidden="true" />
-                <audio controls src={turn.audioUrl} aria-label={`原声回放：${c.original}`} />
-              </div>
-            )}
+      {report.corrections.length > 0 && (
+        <>
+          <h3 style={{ margin: "20px 0 10px", fontSize: 16, letterSpacing: "-0.01em" }}>逐句纠错</h3>
+          <div className="card" style={{ padding: "4px 20px" }}>
+            {report.corrections.map((c, i) => {
+              const turn = session.turns.find(t => t.id === c.turnId)
+              return (
+                <div
+                  key={i}
+                  style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "16px 0", borderTop: i === 0 ? "none" : "0.5px solid var(--separator-soft)" }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, color: "var(--label-2)", textDecoration: "line-through", wordBreak: "break-word" }}>
+                      {c.original}
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4, wordBreak: "break-word" }}>{c.improved}</div>
+                    <div className="muted" style={{ marginTop: 4, lineHeight: 1.55 }}>{c.explanation}</div>
+                    {turn?.audioUrl && (
+                      <div className="row" style={{ marginTop: 8 }}>
+                        <SpeakerHigh size={20} aria-hidden="true" />
+                        <audio controls src={turn.audioUrl} aria-label={`原声回放：${c.original}`} style={{ width: "100%", maxWidth: 420, height: 36 }} />
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    className={typePillClass[c.type] ?? "pill"}
+                    style={{ flexShrink: 0, marginTop: 2, ...(typePillStyle[c.type] ?? {}) }}
+                  >
+                    {typeLabel[c.type] ?? c.type}
+                  </span>
+                </div>
+              )
+            })}
           </div>
-        )
-      })}
+        </>
+      )}
       {report.vocabCandidates.length > 0 && (
         <div className="card">
           <b>生词候选</b>
-          {report.vocabCandidates.map(v => (
-            <div key={v.word} className="row" style={{ marginTop: 8 }}>
-              <div style={{ flex: 1 }}>
-                <b>{v.word}</b> <span className="muted">{v.translation}</span>
-                <div className="muted">{v.example}</div>
+          <div style={{ marginTop: 2 }}>
+            {report.vocabCandidates.map((v, i) => (
+              <div
+                key={v.word}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderTop: i === 0 ? "none" : "0.5px solid var(--separator-soft)" }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <b style={{ fontSize: 15 }}>{v.word}</b> <span className="muted">{v.translation}</span>
+                  <div className="muted" style={{ fontStyle: "italic" }}>{v.example}</div>
+                </div>
+                {handled[v.word] ? (
+                  <span className="chip" style={{ flexShrink: 0 }}>{handled[v.word] === "new" ? "已加入" : "已忽略"}</span>
+                ) : (
+                  <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                    <button
+                      className="btn"
+                      style={{ minHeight: 34, padding: "0 14px", borderRadius: 999, fontSize: 13 }}
+                      onClick={() => handleCandidate(v.word, v.translation, v.example, "new")}
+                    >
+                      采纳
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ minHeight: 34, padding: "0 14px", borderRadius: 999, fontSize: 13 }}
+                      onClick={() => handleCandidate(v.word, v.translation, v.example, "ignored")}
+                    >
+                      忽略
+                    </button>
+                  </span>
+                )}
               </div>
-              {handled[v.word] ? (
-                <span className="chip">{handled[v.word] === "new" ? "已加入" : "已忽略"}</span>
-              ) : (
-                <>
-                  <button className="btn" onClick={() => handleCandidate(v.word, v.translation, v.example, "new")}>采纳</button>
-                  <button className="btn btn-secondary" onClick={() => handleCandidate(v.word, v.translation, v.example, "ignored")}>忽略</button>
-                </>
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
       <Link className="btn btn-secondary" href="/">返回首页</Link>
