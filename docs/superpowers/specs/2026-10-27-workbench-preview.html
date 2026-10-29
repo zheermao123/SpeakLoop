@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SpeakLoop Workbench v3.0 — 设计预览</title>
+<style>
+:root{
+  --bg-grouped:#F5F5F7; --bg-card:#FFFFFF;
+  --label:#1D1D1F; --label-2:#86868B;
+  --tint:#007AFF;
+  --brand-grad:linear-gradient(135deg,#FFB800,#FF9500);
+  --bubble-user:#5B5BD6;
+  --amber:#FFB300; --orange:#FF7847; --indigo:#5B5BD6; --green:#34C759; --blue:#007AFF; --red:#FF3B30;
+  --shadow-card:0 1px 3px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.05);
+  --shadow-hero:0 12px 32px rgba(255,169,0,.22);
+  --r-card:16px; --r-hero:20px; --r-ctl:12px; --r-bubble:18px;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+body{font-family:var(--font);color:var(--label);background:linear-gradient(140deg,#5b2be0 0%,#a428e8 45%,#e93aa9 100%);min-height:100vh;display:grid;place-items:center;padding:24px;-webkit-font-smoothing:antialiased}
+.window{width:min(1440px,100%);height:min(900px,calc(100vh - 48px));background:var(--bg-grouped);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.35)}
+.titlebar{height:40px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:rgba(255,255,255,.6);backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,0,0,.05);user-select:none}
+.titlebar .app{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--label-2)}
+.winbtns{display:flex;gap:8px}
+.winbtns span{width:28px;height:24px;display:grid;place-items:center;border-radius:6px;color:var(--label-2);font-size:12px}
+.winbtns span:hover{background:rgba(0,0,0,.06)}
+.main{flex:1;display:flex;overflow:hidden}
+
+/* ---------- Sidebar ---------- */
+.sidebar{width:232px;flex:none;display:flex;flex-direction:column;padding:16px 12px;gap:4px}
+.logo{display:flex;align-items:center;gap:10px;padding:6px 10px 18px}
+.logo .mark{width:32px;height:32px;border-radius:9px;background:var(--brand-grad);color:#fff;font-weight:800;font-size:17px;display:grid;place-items:center;box-shadow:0 4px 12px rgba(255,169,0,.35)}
+.logo .name{font-weight:700;font-size:15px;letter-spacing:-.01em}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:500;color:var(--label);cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:var(--font)}
+.nav-item:hover{background:rgba(0,0,0,.03)}
+.nav-item.active{background:rgba(0,0,0,.05);font-weight:600}
+.nav-item .ic{width:18px;height:18px;color:var(--label-2)}
+.nav-item.active .ic{color:var(--label)}
+.nav-item .badge{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:rgba(0,0,0,.06);color:var(--label-2);font-size:11px;font-weight:600;display:grid;place-items:center}
+.side-spacer{flex:1}
+.voice-capsule{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:rgba(52,199,89,.1);font-size:13px;font-weight:600;color:#1f7a3d}
+.voice-capsule .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+
+/* ---------- Content ---------- */
+.content{flex:1;overflow-y:auto;padding:32px 36px}
+.content-inner{max-width:1200px;margin:0 auto}
+.page{display:none}
+.page.active{display:block}
+.card{background:var(--bg-card);border-radius:var(--r-card);box-shadow:var(--shadow-card);padding:20px}
+h1.hero-greet{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.muted{color:var(--label-2)}
+.pill{display:inline-flex;align-items:center;height:22px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600}
+.pill.blue{background:rgba(0,122,255,.12);color:var(--blue)}
+.pill.orange{background:rgba(255,149,0,.14);color:#c46a00}
+.pill.green{background:rgba(52,199,89,.14);color:#1f7a3d}
+.pill.gray{background:rgba(0,0,0,.06);color:var(--label-2)}
+.pill.red{background:rgba(255,59,48,.12);color:#d70015}
+.pill.indigo{background:rgba(91,91,214,.12);color:var(--indigo)}
+
+/* ---------- Dashboard ---------- */
+.briefing{background:var(--brand-grad);border-radius:var(--r-hero);box-shadow:var(--shadow-hero);padding:24px 26px;color:#fff;margin-bottom:24px}
+.briefing .date-row{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;margin-bottom:12px}
+.briefing .rich{font-size:22px;line-height:1.5;font-weight:400;color:rgba(255,255,255,.92);max-width:720px}
+.briefing .rich a{color:#fff;font-weight:700;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.insights{margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.35);display:flex;align-items:center;gap:10px;font-size:14px}
+.insights .bulb{width:18px;height:18px}
+.insights .tip{font-weight:500}
+.insights .nav-arrows{margin-left:auto;display:flex;align-items:center;gap:10px}
+.insights .nav-arrows button{background:none;border:none;color:#fff;cursor:pointer;display:grid;place-items:center;width:24px;height:24px;border-radius:6px}
+.insights .nav-arrows button:hover{background:rgba(255,255,255,.2)}
+.dots{display:flex;gap:4px}
+.dots i{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.45)}
+.dots i.on{background:#fff}
+.dash-grid{display:grid;grid-template-columns:2fr 1fr;gap:24px;align-items:start}
+.section-head{display:flex;align-items:baseline;gap:8px;margin-bottom:12px}
+.section-head h2{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.day-head{display:flex;align-items:center;gap:10px;margin:16px 0 4px;font-size:13px;color:var(--label-2)}
+.day-head::after{content:"";flex:1;height:1px;background:rgba(0,0,0,.07)}
+.feed-row{display:flex;align-items:center;gap:14px;padding:14px 4px;border-bottom:1px solid rgba(0,0,0,.05)}
+.feed-row:last-child{border-bottom:none}
+.tile{width:40px;height:40px;border-radius:12px;flex:none;display:grid;place-items:center;color:#fff}
+.tile .ic{width:20px;height:20px}
+.feed-rich{flex:1;font-size:15px;line-height:1.45}
+.feed-rich b{font-weight:700}
+.feed-time{flex:none;font-size:13px;color:var(--label-2)}
+.right-col{display:flex;flex-direction:column;gap:24px}
+.vocab-row{display:flex;align-items:center;gap:10px;padding:11px 2px;border-bottom:1px solid rgba(0,0,0,.05)}
+.vocab-row:last-child{border-bottom:none}
+.vocab-row .w{font-weight:700;font-size:15px}
+.vocab-row .ph{font-size:13px;color:var(--label-2)}
+.vocab-main{flex:1;min-width:0}
+.speak-btn{width:30px;height:30px;border-radius:50%;border:none;background:rgba(0,0,0,.05);color:var(--label-2);display:grid;place-items:center;cursor:pointer;flex:none}
+.speak-btn:hover{background:rgba(0,0,0,.09)}
+.sc-tile{display:flex;align-items:center;gap:12px;padding:12px;border-radius:var(--r-ctl);cursor:pointer;border:1px solid rgba(0,0,0,.05);background:#fff}
+.sc-tile:hover{box-shadow:var(--shadow-card)}
+.sc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sc-tile .nm{font-weight:600;font-size:14px}
+.sc-tile .ic-chev{margin-left:auto;width:16px;height:16px;color:var(--label-2)}
+
+/* ---------- Scenarios page ---------- */
+.sc-row{display:flex;align-items:center;gap:16px;padding:18px 20px}
+.sc-row+.sc-row{margin-top:14px}
+.sc-row .desc{font-size:13px;color:var(--label-2);margin-top:3px}
+.start-btn{margin-left:auto;height:36px;padding:0 18px;border-radius:999px;border:none;background:var(--label);color:#fff;font-weight:600;font-size:13px;cursor:pointer;font-family:var(--font)}
+
+/* ---------- Practice page ---------- */
+.practice-grid{display:grid;grid-template-columns:310px 1fr;gap:24px;height:calc(100vh - 200px);min-height:520px}
+.goal-row{margin-top:14px}
+.goal-row .lbl{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px}
+.bar{height:8px;border-radius:999px;background:rgba(0,0,0,.06);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:999px;background:var(--brand-grad)}
+.chat-panel{display:flex;flex-direction:column;background:var(--bg-card);border-radius:var(--r-card);box-shadow:var(--shadow-card);overflow:hidden}
+.chat-scroll{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:12px}
+.bubble{max-width:72%;padding:10px 14px;font-size:15px;line-height:1.45;border-radius:var(--r-bubble)}
+.bubble.ai{align-self:flex-start;background:#fff;border:1px solid rgba(0,0,0,.06);border-bottom-left-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.bubble.user{align-self:flex-end;background:var(--bubble-user);color:#fff;border-bottom-right-radius:6px}
+.bubble.coach{align-self:flex-start;background:#FFF8E1;border:1px solid #FFE082;color:#8a6100;font-size:13px;border-bottom-left-radius:6px}
+.tts-pill{align-self:flex-start;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--label-2);padding:4px 10px}
+.tts-pill .mini-bar{width:120px;height:4px;border-radius:999px;background:rgba(0,0,0,.08);overflow:hidden}
+.tts-pill .mini-bar i{display:block;width:68%;height:100%;background:var(--indigo)}
+.dock{flex:none;padding:14px 20px;background:rgba(255,255,255,.85);backdrop-filter:blur(20px);border-top:1px solid rgba(0,0,0,.05);display:flex;align-items:center;gap:12px}
+.rec-btn{width:52px;height:52px;border-radius:50%;border:none;background:var(--red);color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 16px rgba(255,59,48,.35)}
+.rec-btn .ic{width:22px;height:22px}
+.dock-hint{font-size:13px;color:var(--label-2)}
+.dock-aux{margin-left:auto;display:flex;gap:8px}
+.aux-btn{height:34px;padding:0 14px;border-radius:999px;border:1px solid rgba(0,0,0,.1);background:#fff;font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font);color:var(--label)}
+.end-btn{background:var(--red);border-color:var(--red);color:#fff;font-weight:600}
+
+/* ---------- Report page ---------- */
+.score-hero{display:flex;align-items:center;gap:24px;background:var(--bg-card);border-radius:var(--r-hero);box-shadow:var(--shadow-card);padding:26px}
+.score-num{font-size:48px;font-weight:800;letter-spacing:-.03em;background:var(--brand-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.corr-row{display:flex;align-items:flex-start;gap:14px;padding:16px 4px;border-bottom:1px solid rgba(0,0,0,.05)}
+.corr-row:last-child{border-bottom:none}
+.corr-main{flex:1}
+.corr-wrong{font-size:15px;color:var(--label-2);text-decoration:line-through}
+.corr-right{font-size:15px;font-weight:700;margin-top:3px}
+.replay{width:34px;height:34px;border-radius:50%;border:none;background:rgba(0,0,0,.05);color:var(--label-2);display:grid;place-items:center;cursor:pointer;flex:none}
+
+/* ---------- Vocab page ---------- */
+.group-head{display:flex;align-items:center;gap:8px;margin:22px 0 6px;font-size:16px;font-weight:700}
+.group-head .cnt{min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:rgba(0,0,0,.06);font-size:12px;font-weight:600;color:var(--label-2);display:grid;place-items:center}
+.check{width:22px;height:22px;border-radius:50%;border:2px solid rgba(0,0,0,.15);flex:none;display:grid;place-items:center;color:#fff;cursor:pointer}
+.check.done{background:var(--green);border-color:var(--green)}
+.check .ic{width:12px;height:12px}
+
+/* ---------- Settings ---------- */
+.set-card{padding:0;overflow:hidden}
+.set-card+.set-card{margin-top:20px}
+.set-card h3{font-size:15px;font-weight:700;padding:16px 20px 0}
+.set-row{display:flex;align-items:center;gap:16px;padding:14px 20px;border-bottom:1px solid rgba(0,0,0,.05)}
+.set-row:last-child{border-bottom:none}
+.set-row label{width:140px;flex:none;font-size:14px;font-weight:500}
+.set-row .inp{flex:1;height:38px;border-radius:12px;border:1px solid rgba(0,0,0,.08);background:#fff;padding:0 12px;font-size:14px;font-family:var(--font);color:var(--label)}
+.set-row .hint{font-size:12px;color:var(--label-2)}
+.test-btn{height:34px;padding:0 14px;border-radius:999px;border:none;background:rgba(0,122,255,.12);color:var(--blue);font-weight:600;font-size:13px;cursor:pointer;font-family:var(--font)}
+.switch{width:44px;height:26px;border-radius:999px;background:var(--green);position:relative;flex:none;cursor:pointer}
+.switch::after{content:"";position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+
+.ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.note{position:fixed;left:16px;bottom:16px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;padding:8px 12px;border-radius:999px;backdrop-filter:blur(8px)}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></symbol>
+  <symbol id="i-vol" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a9 9 0 0 1 0 14"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+  <symbol id="i-case" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></symbol>
+  <symbol id="i-pres" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-coffee" viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M5 3l14 9-14 9z"/></symbol>
+</svg>
+
+<div class="window">
+  <div class="titlebar">
+    <div class="app"><svg class="ic" width="14" height="14"><use href="#i-grid"/></svg> SpeakLoop</div>
+    <div class="winbtns"><span>─</span><span>□</span><span>✕</span></div>
+  </div>
+  <div class="main">
+    <aside class="sidebar">
+      <div class="logo"><div class="mark">S</div><div class="name">SpeakLoop</div></div>
+      <button class="nav-item active" data-page="p-dashboard"><svg class="ic"><use href="#i-home"/></svg>仪表盘</button>
+      <button class="nav-item" data-page="p-scenarios"><svg class="ic"><use href="#i-grid"/></svg>场景</button>
+      <button class="nav-item" data-page="p-vocab"><svg class="ic"><use href="#i-book"/></svg>生词本<span class="badge">5</span></button>
+      <button class="nav-item" data-page="p-settings"><svg class="ic"><use href="#i-gear"/></svg>设置</button>
+      <div class="side-spacer"></div>
+      <div class="voice-capsule"><span class="dot"></span>语音就绪</div>
+    </aside>
+
+    <div class="content"><div class="content-inner">
+
+      <!-- ========== 仪表盘 ========== -->
+      <section class="page active" id="p-dashboard">
+        <h1 class="hero-greet">下午好 👋</h1>
+
+        <div class="briefing">
+          <div class="date-row"><svg class="ic" width="16" height="16"><use href="#i-cal"/></svg>10 月 27 日 星期二</div>
+          <p class="rich">本周你完成了 <a>3 次对话</a>，累计 <a>32 分钟</a>，还有 <a>5 个生词</a>待复习。</p>
+          <div class="insights">
+            <svg class="ic bulb"><use href="#i-bulb"/></svg>
+            <span class="tip">你最常出现的错误是<strong>语法</strong>——注意现在完成时里的动词过去分词。</span>
+            <div class="nav-arrows">
+              <button><svg class="ic" width="14" height="14"><use href="#i-left"/></svg></button>
+              <div class="dots"><i class="on"></i><i></i><i></i></div>
+              <button><svg class="ic" width="14" height="14"><use href="#i-right"/></svg></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <div>
+            <div class="section-head"><h2>练习动态</h2></div>
+            <div class="card" style="padding:6px 20px">
+              <div class="day-head">今天</div>
+              <div class="feed-row">
+                <div class="tile" style="background:#007AFF"><svg class="ic"><use href="#i-case"/></svg></div>
+                <div class="feed-rich">你完成了 <b>面试模拟</b>，有 <b>3 处</b>可改进。</div>
+                <div class="feed-time">25 分钟前</div>
+              </div>
+              <div class="feed-row">
+                <div class="tile" style="background:#30B0C7"><svg class="ic"><use href="#i-users"/></svg></div>
+                <div class="feed-rich">你练习了 <b>一对一沟通</b>，共 <b>8 轮</b>对话。</div>
+                <div class="feed-time">2 小时前</div>
+              </div>
+              <div class="day-head">昨天</div>
+              <div class="feed-row">
+                <div class="tile" style="background:#5856D6"><svg class="ic"><use href="#i-pres"/></svg></div>
+                <div class="feed-rich">你完成了 <b>每日站会</b>，有 <b>5 处</b>可改进。</div>
+                <div class="feed-time">昨天 18:30</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="right-col">
+            <div>
+              <div class="section-head"><h2>待复习</h2><span class="pill gray">5</span></div>
+              <div class="card" style="padding:6px 16px">
+                <div class="vocab-row">
+                  <div class="vocab-main"><div class="w">alignment</div><div class="ph">/əˈlaɪnmənt/ n. 对齐</div></div>
+                  <span class="pill orange">认识中</span>
+                  <button class="speak-btn"><svg class="ic" width="14" height="14"><use href="#i-vol"/></svg></button>
+                </div>
+                <div class="vocab-row">
+                  <div class="vocab-main"><div class="w">deliverable</div><div class="ph">/dɪˈlɪvərəbl/ n. 交付物</div></div>
+                  <span class="pill blue">未学</span>
+                  <button class="speak-btn"><svg class="ic" width="14" height="14"><use href="#i-vol"/></svg></button>
+                </div>
+                <div class="vocab-row">
+                  <div class="vocab-main"><div class="w">bandwidth</div><div class="ph">/ˈbændwɪdθ/ n. 精力</div></div>
+                  <span class="pill blue">未学</span>
+                  <button class="speak-btn"><svg class="ic" width="14" height="14"><use href="#i-vol"/></svg></button>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="section-head"><h2>场景入口</h2></div>
+              <div class="sc-grid">
+                <div class="sc-tile"><div class="tile" style="width:34px;height:34px;background:#007AFF"><svg class="ic" width="16" height="16"><use href="#i-case"/></svg></div><span class="nm">面试模拟</span><svg class="ic ic-chev"><use href="#i-chev"/></svg></div>
+                <div class="sc-tile"><div class="tile" style="width:34px;height:34px;background:#5856D6"><svg class="ic" width="16" height="16"><use href="#i-pres"/></svg></div><span class="nm">每日站会</span><svg class="ic ic-chev"><use href="#i-chev"/></svg></div>
+                <div class="sc-tile"><div class="tile" style="width:34px;height:34px;background:#30B0C7"><svg class="ic" width="16" height="16"><use href="#i-users"/></svg></div><span class="nm">一对一沟通</span><svg class="ic ic-chev"><use href="#i-chev"/></svg></div>
+                <div class="sc-tile"><div class="tile" style="width:34px;height:34px;background:#FF9500"><svg class="ic" width="16" height="16"><use href="#i-coffee"/></svg></div><span class="nm">闲聊茶水间</span><svg class="ic ic-chev"><use href="#i-chev"/></svg></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 场景 ========== -->
+      <section class="page" id="p-scenarios">
+        <h1 class="hero-greet">场景</h1>
+        <div class="card sc-row">
+          <div class="tile" style="background:#007AFF"><svg class="ic"><use href="#i-case"/></svg></div>
+          <div><div style="font-weight:700;font-size:16px">面试模拟</div><div class="desc">常见行为面与技术面问答，练出结构化表达</div></div>
+          <span class="pill indigo" style="margin-left:16px">进阶</span>
+          <button class="start-btn">开始</button>
+        </div>
+        <div class="card sc-row">
+          <div class="tile" style="background:#5856D6"><svg class="ic"><use href="#i-pres"/></svg></div>
+          <div><div style="font-weight:700;font-size:16px">每日站会</div><div class="desc">用英文同步昨天进展、今天计划与阻塞点</div></div>
+          <span class="pill blue" style="margin-left:16px">入门</span>
+          <button class="start-btn">开始</button>
+        </div>
+        <div class="card sc-row">
+          <div class="tile" style="background:#30B0C7"><svg class="ic"><use href="#i-users"/></svg></div>
+          <div><div style="font-weight:700;font-size:16px">一对一沟通</div><div class="desc">与 manager 的定期 1:1：反馈、目标与职业发展</div></div>
+          <span class="pill orange" style="margin-left:16px">进阶</span>
+          <button class="start-btn">开始</button>
+        </div>
+        <div class="card sc-row">
+          <div class="tile" style="background:#FF9500"><svg class="ic"><use href="#i-coffee"/></svg></div>
+          <div><div style="font-weight:700;font-size:16px">闲聊茶水间</div><div class="desc">茶水间与团建场景的 small talk，练自然寒暄</div></div>
+          <span class="pill blue" style="margin-left:16px">入门</span>
+          <button class="start-btn">开始</button>
+        </div>
+      </section>
+
+      <!-- ========== 练习 ========== -->
+      <section class="page" id="p-practice">
+        <h1 class="hero-greet" style="font-size:20px;margin-bottom:16px">面试模拟 <span class="muted" style="font-size:14px;font-weight:400">· 进行中</span></h1>
+        <div class="practice-grid">
+          <div class="card">
+            <div style="font-weight:700;font-size:15px;margin-bottom:6px">本场目标</div>
+            <div class="muted" style="font-size:13px;line-height:1.5">用 STAR 结构回答行为问题，自然使用过去时态。</div>
+            <div class="goal-row">
+              <div class="lbl"><span>说满 8 轮对话</span><span class="muted">5/8</span></div>
+              <div class="bar"><i style="width:62%"></i></div>
+            </div>
+            <div class="goal-row">
+              <div class="lbl"><span>正确使用 3 个生词</span><span class="muted">1/3</span></div>
+              <div class="bar"><i style="width:33%"></i></div>
+            </div>
+          </div>
+          <div class="chat-panel">
+            <div class="chat-scroll">
+              <div class="bubble ai">Tell me about a time you had to deal with a tight deadline.</div>
+              <div class="bubble user">Last quarter, my team had to deliver a client demo in two weeks. I broke the work into daily milestones and checked alignment every morning.</div>
+              <div class="bubble ai">Nice use of "milestones". Can you describe what the biggest risk was?</div>
+              <div class="bubble user">The main risk was that the client kept changing requirements, so we had limited bandwidth for new features.</div>
+              <div class="tts-pill"><svg class="ic" width="12" height="12"><use href="#i-vol"/></svg>朗读中<span class="mini-bar"><i></i></span></div>
+              <div class="bubble coach">💡 提示：试着用 "We were running the risk of…" 来表达"我们面临…的风险"。</div>
+            </div>
+            <div class="dock">
+              <button class="rec-btn"><svg class="ic"><use href="#i-mic"/></svg></button>
+              <span class="dock-hint">点击说话，或直接打字</span>
+              <div class="dock-aux">
+                <button class="aux-btn">听不懂</button>
+                <button class="aux-btn">提示</button>
+                <button class="aux-btn end-btn">结束练习</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 报告 ========== -->
+      <section class="page" id="p-report">
+        <h1 class="hero-greet" style="font-size:20px;margin-bottom:16px">练习报告 <span class="muted" style="font-size:14px;font-weight:400">· 面试模拟 · 10 月 27 日</span></h1>
+        <div class="summary-hero" style="position:relative;overflow:hidden;background:var(--bg-card);border-radius:20px;box-shadow:var(--shadow-card);padding:22px 26px;margin-bottom:14px">
+          <div style="position:absolute;top:0;left:0;right:0;height:6px;background:var(--brand-grad)"></div>
+          <div style="font-weight:700;font-size:16px">总评</div>
+          <p style="margin-top:8px;font-size:15px;line-height:1.6">表达清晰有结构，能围绕问题展开并给出具体例子；过去时态有两处 slip，注意完成时里的过去分词形式。整体已具备流畅应对行为面试的能力。</p>
+        </div>
+        <div class="section-head" style="margin-top:24px"><h2>逐句纠错</h2></div>
+        <div class="card" style="padding:6px 20px">
+          <div class="corr-row">
+            <button class="replay"><svg class="ic" width="14" height="14"><use href="#i-play"/></svg></button>
+            <div class="corr-main">
+              <div class="corr-wrong">I have went to the client site last week.</div>
+              <div class="corr-right">I went to the client site last week.</div>
+            </div>
+            <span class="pill red">语法</span>
+          </div>
+          <div class="corr-row">
+            <button class="replay"><svg class="ic" width="14" height="14"><use href="#i-play"/></svg></button>
+            <div class="corr-main">
+              <div class="corr-wrong">We need to do a plan for the launch.</div>
+              <div class="corr-right">We need to make a plan for the launch.</div>
+            </div>
+            <span class="pill orange">用词</span>
+          </div>
+          <div class="corr-row">
+            <button class="replay"><svg class="ic" width="14" height="14"><use href="#i-play"/></svg></button>
+            <div class="corr-main">
+              <div class="corr-wrong">Let's discuss about the roadmap.</div>
+              <div class="corr-right">Let's discuss the roadmap.</div>
+            </div>
+            <span class="pill indigo">地道表达</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 生词本 ========== -->
+      <section class="page" id="p-vocab">
+        <h1 class="hero-greet">生词本</h1>
+        <div class="card" style="padding:6px 20px">
+          <div class="group-head">认识中 <span class="cnt">2</span></div>
+          <div class="vocab-row">
+            <div class="check"></div>
+            <div class="vocab-main"><span class="w">alignment</span> <span class="ph">/əˈlaɪnmənt/ n. 对齐 · 来自 面试模拟</span></div>
+            <span class="pill orange">认识中</span>
+            <button class="speak-btn"><svg class="ic" width="14" height="14"><use href="#i-vol"/></svg></button>
+          </div>
+          <div class="vocab-row">
+            <div class="check"></div>
+            <div class="vocab-main"><span class="w">blocker</span> <span class="ph">/ˈblɒkər/ n. 阻塞点 · 来自 每日站会</span></div>
+            <span class="pill orange">认识中</span>
+            <button class="speak-btn"><svg class="ic" width="14" height="14"><use href="#i-vol"/></svg></button>
+          </div>
+          <div class="group-head">未学 <span class="cnt">3</span></div>
+          <div class="vocab-row">
+            <div class="check"></div>
+            <div class="vocab-main"><span class="w">deliverable</span> <span class="ph">/dɪˈlɪvərəbl/ n. 交付物 · 来自 面试模拟</span></div>
+            <span class="pill blue">未学</span>
+            <button class="speak-btn"><svg class="ic" width="14" height="14"><use href="#i-vol"/></svg></button>
+          </div>
+          <div class="vocab-row">
+            <div class="check"></div>
+            <div class="vocab-main"><span class="w">bandwidth</span> <span class="ph">/ˈbændwɪdθ/ n. 精力 · 来自 一对一沟通</span></div>
+            <span class="pill blue">未学</span>
+            <button class="speak-btn"><svg class="ic" width="14" height="14"><use href="#i-vol"/></svg></button>
+          </div>
+          <div class="vocab-row">
+            <div class="check"></div>
+            <div class="vocab-main"><span class="w">touch base</span> <span class="ph">phr. 碰个头 · 来自 闲聊茶水间</span></div>
+            <span class="pill blue">未学</span>
+            <button class="speak-btn"><svg class="ic" width="14" height="14"><use href="#i-vol"/></svg></button>
+          </div>
+          <div class="group-head">已掌握 <span class="cnt">1</span></div>
+          <div class="vocab-row">
+            <div class="check done"><svg class="ic"><use href="#i-check"/></svg></div>
+            <div class="vocab-main"><span class="w">milestone</span> <span class="ph">/ˈmaɪlstəʊn/ n. 里程碑 · 来自 面试模拟</span></div>
+            <span class="pill green">已掌握</span>
+            <button class="speak-btn"><svg class="ic" width="14" height="14"><use href="#i-vol"/></svg></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 设置 ========== -->
+      <section class="page" id="p-settings">
+        <h1 class="hero-greet">设置</h1>
+        <div class="card set-card">
+          <h3>对话模型</h3>
+          <div class="set-row"><label>Base URL</label><input class="inp" value="https://api.openai.com/v1"></div>
+          <div class="set-row"><label>API Key</label><input class="inp" type="password" value="sk-1234567890a1b2"><span class="hint">尾 4 位 a1b2</span></div>
+          <div class="set-row"><label>Model</label><input class="inp" value="gpt-4o-mini"><button class="test-btn">测试连接</button></div>
+        </div>
+        <div class="card set-card">
+          <h3>语音服务</h3>
+          <div class="set-row"><label>STT 地址</label><input class="inp" value="http://127.0.0.1:8100"><button class="test-btn">测试连接</button></div>
+          <div class="set-row"><label>TTS 地址</label><input class="inp" value="http://127.0.0.1:8101"></div>
+          <div class="set-row"><label>默认音色</label><input class="inp" value="zh_female_cancan"></div>
+        </div>
+        <div class="card set-card">
+          <h3>通用</h3>
+          <div class="set-row"><label>自动朗读 AI 回复</label><span class="switch"></span></div>
+          <div class="set-row"><label>悬停显示中文翻译</label><span class="switch"></span></div>
+        </div>
+      </section>
+
+    </div></div>
+  </div>
+</div>
+
+<div class="note">Workbench v3.0 设计预览 · 点击左侧导航切换页面 · 非功能实现</div>
+
+<script>
+document.querySelectorAll('.nav-item').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.nav-item').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+    document.getElementById(btn.dataset.page).classList.add('active');
+    document.querySelector('.content').scrollTop = 0;
+  });
+});
+</script>
+</body>
+</html>
