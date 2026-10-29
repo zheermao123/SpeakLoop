@@ -735,7 +735,21 @@ label.field {
   gap: var(--s2);
 }
 .dock-assist-row { display: flex; align-items: center; justify-content: space-between; }
+.dock-assist-row .btn-danger { min-width: 132px; }
 .dock-input-row { display: flex; align-items: center; gap: var(--s2); }
+.dock-input-row .record-btn { min-width: 132px; }
+.dock-input-row > div { position: relative; }
+.dock-input-row .record-btn + .muted {
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-size: 12px;
+  background: var(--fill-2);
+  border-radius: var(--radius-pill);
+  padding: 3px 10px;
+}
 
 .page-container {
   max-width: 1040px;

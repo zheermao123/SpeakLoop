@@ -15,8 +15,12 @@ const DEFAULTS: AppConfig = {
   tts: { provider: "qwen3-local", baseUrl: "http://127.0.0.1:8101", speaker: "Aiden" },
 }
 
+export function resolveDataDir() {
+  return process.env.DATA_DIR ?? path.join(process.cwd(), "data")
+}
+
 function file() {
-  return path.join(process.env.DATA_DIR ?? path.join(process.cwd(), "data"), "config.json")
+  return path.join(resolveDataDir(), "config.json")
 }
 
 async function readStored(): Promise<DeepPartial<AppConfig>> {
