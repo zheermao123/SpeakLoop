@@ -43,7 +43,7 @@ Next.js 全栈（薄路由 → services 业务层 → json-store 存储）
 **使用（推荐）**
 
 1. 部署 ai-server 双服务（首次下载权重 ~5GB，见 `docs/superpowers/plans/2026-10-01-speakloop-phase0-ai-server.md`）
-2. 运行 `dist` 目录下的 `SpeakLoop Setup` 安装包（或直接运行 `dist/win-unpacked/SpeakLoop.exe`）
+2. 运行 `dist` 目录下的 `SpeakLoop Setup` 安装包安装应用
 3. 配置 `.env`（STT/TTS/CHAT 三项 provider，见配置说明），或安装后在应用内 `/settings` 配置
 4. 启动应用：语音服务由应用自动拉起（冷加载约 2 分钟，界面有预热状态提示）；关闭窗口即退出并清理全部服务
 
@@ -114,6 +114,13 @@ Next.js 全栈（薄路由 → services 业务层 → json-store 存储）
 | `node scripts/browser-check.mjs` | 开发工具：真实浏览器 E2E 走查（需 `npm run dev`） |
 | `node scripts/acceptance-check.mjs` | 开发工具：13 项验收检查（需 `npm run dev`） |
 | `node scripts/console-check.mjs` | 开发工具：四页控制台零错误检查（需 `npm run dev`） |
+
+## 版本与发布
+
+- **版本唯一来源**：`package.json` 的 `version` 字段——安装包与 EXE 的版本号均由此派生，代码与文档中禁止硬编码
+- **发版流程**：`npm version patch|minor|major`（自动更新版本号并打 `v*` tag）→ 推送 tag 后 GitHub Actions 自动构建安装包并上传 Artifact（`.github/workflows/release.yml`）
+- **CI**：`.github/workflows/ci.yml` 在 push/PR 时运行测试 + 类型检查 + 构建门禁
+- **启动政策**：日常使用仅支持**安装版**；`dist/win-unpacked/` 为构建中间产物，不作为分发或启动形态
 
 ## 已知限制
 
