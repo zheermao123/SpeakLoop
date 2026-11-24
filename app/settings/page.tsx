@@ -55,10 +55,23 @@ export default function SettingsPage() {
   }
 
   async function test(target: "chat" | "stt" | "tts") {
+    if (!cfg) return
     setResults(r => ({ ...r, [target]: { ok: false, detail: "测试中…", ms: 0 } }))
     try {
+      const payload: Record<string, unknown> = { target }
+      if (target === "chat") {
+        payload.chat = {
+          baseUrl: cfg.chat.baseUrl,
+          model: cfg.chat.model,
+          ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+        }
+      } else if (target === "stt") {
+        payload.stt = { baseUrl: cfg.stt.baseUrl }
+      } else {
+        payload.tts = { baseUrl: cfg.tts.baseUrl }
+      }
       const r = await fetch("/api/settings/test", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       })
       if (!r.ok) throw new Error((await r.json()).detail ?? `测试失败 (${r.status})`)
       const j = await r.json()
