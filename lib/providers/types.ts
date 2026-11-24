@@ -44,7 +44,12 @@ export async function getChat(): Promise<ChatProvider> {
     throw new Error("openai-compatible 需要 CHAT_BASE_URL 与 CHAT_MODEL（apiKey 可空）")
   }
   const { OpenAICompatibleChatProvider } = await import("@/lib/providers/chat/openai-compatible")
-  return new OpenAICompatibleChatProvider({ baseUrl: cfg.chat.baseUrl, apiKey: cfg.chat.apiKey, model: cfg.chat.model })
+  return new OpenAICompatibleChatProvider({
+    baseUrl: cfg.chat.baseUrl,
+    apiKey: cfg.chat.apiKey,
+    model: cfg.chat.model,
+    headers: cfg.chat.headers,
+  })
 }
 
 export async function getTTS(): Promise<TTSProvider> {

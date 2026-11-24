@@ -4,6 +4,7 @@ interface ChatCfg {
   baseUrl: string
   apiKey: string
   model: string
+  headers?: Record<string, string>
   fetchImpl?: typeof fetch
 }
 
@@ -19,6 +20,8 @@ export class OpenAICompatibleChatProvider implements ChatProvider {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.cfg.apiKey}`,
+        "User-Agent": "SpeakLoop/0.1.0",
+        ...(this.cfg.headers ?? {}),
       },
       body: JSON.stringify({
         model: this.cfg.model,

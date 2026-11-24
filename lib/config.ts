@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs"
 import path from "node:path"
 
 export interface AppConfig {
-  chat: { provider: string; baseUrl: string; apiKey: string; model: string }
+  chat: { provider: string; baseUrl: string; apiKey: string; model: string; headers?: Record<string, string> }
   stt: { provider: string; baseUrl: string }
   tts: { provider: string; baseUrl: string; speaker: string }
 }
@@ -21,6 +21,15 @@ export function resolveDataDir() {
 
 function file() {
   return path.join(resolveDataDir(), "config.json")
+}
+
+function safeParseHeaders(raw: string): Record<string, string> | undefined {
+  try {
+    const v = JSON.parse(raw)
+    return typeof v === "object" && v && !Array.isArray(v) ? (v as Record<string, string>) : undefined
+  } catch {
+    return undefined
+  }
 }
 
 async function readStored(): Promise<DeepPartial<AppConfig>> {
@@ -46,6 +55,7 @@ export async function resolveConfig(): Promise<AppConfig> {
       baseUrl: process.env.CHAT_BASE_URL ?? "",
       apiKey: process.env.CHAT_API_KEY ?? "",
       model: process.env.CHAT_MODEL ?? "",
+      headers: process.env.CHAT_HEADERS ? safeParseHeaders(process.env.CHAT_HEADERS) : undefined,
     },
     stt: {
       provider: process.env.STT_PROVIDER ?? DEFAULTS.stt.provider,

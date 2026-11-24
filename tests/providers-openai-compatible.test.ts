@@ -58,3 +58,32 @@ it("HTTP 错误抛出含状态码", async () => {
   })
   await expect(p.chat("SYS", [])).rejects.toThrow("401")
 })
+
+it("自定义 headers 合并进请求且 UA 可覆盖", async () => {
+  let init: RequestInit = {}
+  const p = new OpenAICompatibleChatProvider({
+    ...CFG,
+    headers: { "x-opencode-session": "ses_abc", "User-Agent": "SpeakLoop-test/1.0" },
+    fetchImpl: async (_u, i) => {
+      init = i as RequestInit
+      return { ok: true, json: async () => ({ choices: [{ message: { content: "x" } }] }), text: async () => "" } as unknown as Response
+    },
+  })
+  await p.chat("SYS", [{ role: "user", content: "hi" }])
+  const h = init.headers as Record<string, string>
+  expect(h["x-opencode-session"]).toBe("ses_abc")
+  expect(h["User-Agent"]).toBe("SpeakLoop-test/1.0")
+})
+
+it("无自定义 headers 时默认 UA 为 SpeakLoop/0.1.0", async () => {
+  let init: RequestInit = {}
+  const p = new OpenAICompatibleChatProvider({
+    ...CFG,
+    fetchImpl: async (_u, i) => {
+      init = i as RequestInit
+      return { ok: true, json: async () => ({ choices: [{ message: { content: "x" } }] }), text: async () => "" } as unknown as Response
+    },
+  })
+  await p.chat("SYS", [{ role: "user", content: "hi" }])
+  expect((init.headers as Record<string, string>)["User-Agent"]).toBe("SpeakLoop/0.1.0")
+})
