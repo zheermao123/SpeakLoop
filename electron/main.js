@@ -127,7 +127,29 @@ async function pickFreePort(start) {
   throw new Error("no free port available")
 }
 
+function cleanZeroFilledCacheFiles() {
+  const cacheDir = path.join(appRoot, ".next", "standalone", ".next", "server", "route-cache")
+  let names
+  try {
+    names = fs.readdirSync(cacheDir, { recursive: true })
+  } catch {
+    return
+  }
+  for (const rel of names) {
+    const file = path.join(cacheDir, rel)
+    try {
+      if (!fs.statSync(file).isFile()) continue
+      const buf = fs.readFileSync(file)
+      if (buf.length > 0 && buf.every(b => b === 0)) {
+        fs.rmSync(path.dirname(file), { recursive: true, force: true })
+        console.error("[main] removed zero-filled cache entry:", rel)
+      }
+    } catch {}
+  }
+}
+
 function spawnNextServer(port) {
+  cleanZeroFilledCacheFiles()
   const standaloneDir = path.join(appRoot, ".next", "standalone")
   const dotEnv = loadUserDataEnv()
   const proc = spawn(process.execPath, [path.join(standaloneDir, "server.js")], {
